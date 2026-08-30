@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Adaptive-icon foreground: a simple stylized Bible at a slight angle with a cross on the cover.
-     Brand blue (#1E2A4A) cross/spine on a gold (#E4B95B) cover, cream (#F7F4EC) page edge, over the
-     blue adaptive background. Placeholder-simple; refine later if published. -->
+<!-- Adaptive-icon foreground: an angled Bible drawn as a yellow OUTLINE with a filled yellow cross,
+     over the brand-blue background. Two brand colors only: blue #1E3A5F bg, yellow #F8E808. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -9,28 +8,26 @@
     android:viewportHeight="108">
     <group
         android:name="book"
-        android:pivotX="53"
+        android:pivotX="54"
         android:pivotY="54"
         android:rotation="-12">
-        <!-- page edge (peeks out on the right) -->
+        <!-- cover outline -->
         <path
-            android:fillColor="#F7F4EC"
-            android:pathData="M70,30 h5 a2,2 0 0 1 2,2 v44 a2,2 0 0 1 -2,2 h-5 z" />
-        <!-- cover -->
-        <path
-            android:fillColor="#E4B95B"
-            android:pathData="M36,26 h34 a4,4 0 0 1 4,4 v48 a4,4 0 0 1 -4,4 h-34 a4,4 0 0 1 -4,-4 v-48 a4,4 0 0 1 4,-4 z" />
+            android:fillColor="#00000000"
+            android:strokeColor="#F8E808"
+            android:strokeWidth="3.5"
+            android:strokeLineJoin="round"
+            android:pathData="M40,26 h28 a4,4 0 0 1 4,4 v48 a4,4 0 0 1 -4,4 h-28 a4,4 0 0 1 -4,-4 v-48 a4,4 0 0 1 4,-4 z" />
         <!-- spine -->
         <path
-            android:fillColor="#1E2A4A"
-            android:pathData="M37,30 h3 v48 h-3 z" />
-        <!-- cross (vertical) -->
+            android:fillColor="#00000000"
+            android:strokeColor="#F8E808"
+            android:strokeWidth="3"
+            android:strokeLineCap="round"
+            android:pathData="M43,29 v50" />
+        <!-- cross (filled), centered on the cover face (right of the spine, ~x58) -->
         <path
-            android:fillColor="#1E2A4A"
-            android:pathData="M50,40 h6 v30 h-6 z" />
-        <!-- cross (horizontal) -->
-        <path
-            android:fillColor="#1E2A4A"
-            android:pathData="M44,48 h18 v6 h-18 z" />
+            android:fillColor="#F8E808"
+            android:pathData="M55,40 h6 v8 h6 v6 h-6 v16 h-6 v-16 h-6 v-6 h6 z" />
     </group>
 </vector>
