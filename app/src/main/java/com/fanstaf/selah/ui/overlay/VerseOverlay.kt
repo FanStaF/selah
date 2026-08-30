@@ -1,8 +1,12 @@
 package com.fanstaf.selah.ui.overlay
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -23,15 +27,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.fanstaf.selah.data.DisplayMode
+import com.fanstaf.selah.data.DisplayStyle
 import com.fanstaf.selah.ui.theme.verseTextStyle
 import kotlinx.coroutines.delay
 
 /**
- * The card shown over whatever is on screen after unlock. Deliberately small (wrap-content window),
- * so touches outside it fall through to the phone — it never blocks access.
+ * The verse shown after unlock. Two styles:
+ *  - CARD: a small floating card; the window is non-blocking (taps outside fall through).
+ *  - FULLSCREEN: an opaque panel over the whole app area (tap anywhere to reveal/dismiss),
+ *    hiding wallpaper and icons for a calmer moment.
  */
 @Composable
 fun VerseOverlay(
@@ -39,6 +47,7 @@ fun VerseOverlay(
     text: String,
     translation: String,
     mode: DisplayMode,
+    style: DisplayStyle,
     fontScale: Float,
     revealDelayMs: Long,
     onRevealed: () -> Unit,
@@ -56,6 +65,106 @@ fun VerseOverlay(
         }
     }
 
+    fun reveal() {
+        revealed = true
+        onRevealed()
+    }
+
+    when (style) {
+        DisplayStyle.FULLSCREEN -> FullScreenOverlay(
+            reference = reference,
+            text = text,
+            translation = translation,
+            revealed = revealed,
+            fontScale = fontScale,
+            onTap = { if (revealed) onClose() else reveal() },
+        )
+        DisplayStyle.CARD -> CardOverlay(
+            reference = reference,
+            text = text,
+            translation = translation,
+            revealed = revealed,
+            fontScale = fontScale,
+            onReveal = { reveal() },
+            onClose = onClose,
+        )
+    }
+}
+
+@Composable
+private fun FullScreenOverlay(
+    reference: String,
+    text: String,
+    translation: String,
+    revealed: Boolean,
+    fontScale: Float,
+    onTap: () -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(scheme.background, scheme.surface, scheme.background),
+                ),
+            )
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onTap,
+            )
+            .padding(horizontal = 32.dp, vertical = 64.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+        ) {
+            Text(
+                text = reference.uppercase(),
+                style = MaterialTheme.typography.titleMedium,
+                color = scheme.secondary,
+                textAlign = TextAlign.Center,
+            )
+            if (revealed) {
+                Text(
+                    text = text,
+                    style = verseTextStyle(MaterialTheme.typography.headlineMedium, fontScale),
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    text = translation,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = scheme.onSurfaceVariant,
+                )
+            } else {
+                Text(
+                    text = "Can you say it?",
+                    style = verseTextStyle(MaterialTheme.typography.headlineMedium, fontScale),
+                    color = scheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    text = "tap to reveal",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = scheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CardOverlay(
+    reference: String,
+    text: String,
+    translation: String,
+    revealed: Boolean,
+    fontScale: Float,
+    onReveal: () -> Unit,
+    onClose: () -> Unit,
+) {
     Card(
         modifier = Modifier
             .widthIn(max = 380.dp)
@@ -80,7 +189,6 @@ fun VerseOverlay(
                     color = MaterialTheme.colorScheme.secondary,
                     textAlign = TextAlign.Center,
                 )
-
                 if (revealed) {
                     Text(
                         text = text,
@@ -99,9 +207,7 @@ fun VerseOverlay(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                     )
-                    TextButton(onClick = { revealed = true; onRevealed() }) {
-                        Text("Reveal")
-                    }
+                    TextButton(onClick = onReveal) { Text("Reveal") }
                 }
             }
 

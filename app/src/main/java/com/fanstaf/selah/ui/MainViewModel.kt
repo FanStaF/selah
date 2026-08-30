@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.fanstaf.selah.AppGraph
 import com.fanstaf.selah.data.DisplayMode
+import com.fanstaf.selah.data.DisplayStyle
 import com.fanstaf.selah.data.SelectionStrategy
 import com.fanstaf.selah.data.Settings
 import com.fanstaf.selah.data.Verse
@@ -40,6 +41,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setMinInterval(minutes: Int) = viewModelScope.launch { store.setMinInterval(minutes) }
     fun setSingleVerse(id: Long) = viewModelScope.launch { store.setSingleVerseId(id) }
     fun setFontScale(scale: Float) = viewModelScope.launch { store.setFontScale(scale) }
+    fun setDisplayStyle(style: DisplayStyle) = viewModelScope.launch { store.setDisplayStyle(style) }
 
     fun addVerse(reference: String, text: String, translation: String) =
         viewModelScope.launch { repo.addUserVerse(reference, text, translation) }

@@ -19,6 +19,9 @@ enum class DisplayMode { READ, RECALL }
 /** How the next verse is chosen from the active set. */
 enum class SelectionStrategy { SEQUENTIAL, RANDOM, SINGLE }
 
+/** How much of the screen the overlay covers. */
+enum class DisplayStyle { CARD, FULLSCREEN }
+
 /** Immutable snapshot of all user settings. */
 data class Settings(
     val enabled: Boolean = false,
@@ -31,6 +34,7 @@ data class Settings(
     val sequentialCursor: Int = 0,
     val lastShownAt: Long = 0L,
     val fontScale: Float = 1.0f,
+    val displayStyle: DisplayStyle = DisplayStyle.FULLSCREEN,
 )
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "selah_settings")
@@ -47,6 +51,7 @@ class SettingsStore(private val context: Context) {
         val CURSOR = intPreferencesKey("sequential_cursor")
         val LAST_SHOWN = longPreferencesKey("last_shown_at")
         val FONT_SCALE = floatPreferencesKey("font_scale")
+        val DISPLAY_STYLE = stringPreferencesKey("display_style")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { p ->
@@ -60,6 +65,7 @@ class SettingsStore(private val context: Context) {
             sequentialCursor = p[Keys.CURSOR] ?: 0,
             lastShownAt = p[Keys.LAST_SHOWN] ?: 0L,
             fontScale = p[Keys.FONT_SCALE] ?: 1.0f,
+            displayStyle = (p[Keys.DISPLAY_STYLE]?.let { runCatching { DisplayStyle.valueOf(it) }.getOrNull() }) ?: DisplayStyle.FULLSCREEN,
         )
     }
 
@@ -70,6 +76,7 @@ class SettingsStore(private val context: Context) {
     suspend fun setMinInterval(v: Int) = context.dataStore.edit { it[Keys.MIN_INTERVAL] = v }
     suspend fun setSingleVerseId(v: Long) = context.dataStore.edit { it[Keys.SINGLE_ID] = v }
     suspend fun setFontScale(v: Float) = context.dataStore.edit { it[Keys.FONT_SCALE] = v }
+    suspend fun setDisplayStyle(v: DisplayStyle) = context.dataStore.edit { it[Keys.DISPLAY_STYLE] = v.name }
 
     suspend fun setCursor(v: Int) = context.dataStore.edit { it[Keys.CURSOR] = v }
     suspend fun setLastShownAt(v: Long) = context.dataStore.edit { it[Keys.LAST_SHOWN] = v }

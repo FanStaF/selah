@@ -13,6 +13,7 @@ import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.fanstaf.selah.data.DisplayMode
+import com.fanstaf.selah.data.DisplayStyle
 import com.fanstaf.selah.data.Verse
 import com.fanstaf.selah.ui.theme.SelahTheme
 
@@ -29,7 +30,7 @@ class OverlayController(private val context: Context) {
     private var currentView: ComposeView? = null
     private var currentOwner: OverlayLifecycleOwner? = null
 
-    fun show(verse: Verse, mode: DisplayMode, durationSeconds: Int, fontScale: Float) {
+    fun show(verse: Verse, mode: DisplayMode, style: DisplayStyle, durationSeconds: Int, fontScale: Float) {
         removeNow()
 
         val owner = OverlayLifecycleOwner().apply { onCreate(); onResume() }
@@ -48,6 +49,7 @@ class OverlayController(private val context: Context) {
                         text = verse.text,
                         translation = verse.translation,
                         mode = mode,
+                        style = style,
                         fontScale = fontScale,
                         revealDelayMs = revealDelayMs,
                         // Once revealed, give the full read time before auto-dismiss.
@@ -56,20 +58,22 @@ class OverlayController(private val context: Context) {
                     )
                 }
             }
-            // A tap outside the card (delivered because of FLAG_WATCH_OUTSIDE_TOUCH) dismisses it,
-            // without consuming the touch from the app behind.
-            setOnTouchListener { _, event ->
-                if (event.action == MotionEvent.ACTION_OUTSIDE) {
-                    dismiss()
+            if (style == DisplayStyle.CARD) {
+                // A tap outside the card (delivered because of FLAG_WATCH_OUTSIDE_TOUCH) dismisses
+                // it, without consuming the touch from the app behind.
+                setOnTouchListener { _, event ->
+                    if (event.action == MotionEvent.ACTION_OUTSIDE) {
+                        dismiss()
+                    }
+                    false
                 }
-                false
             }
         }
 
         currentView = view
         currentOwner = owner
 
-        runCatching { windowManager.addView(view, layoutParams()) }
+        runCatching { windowManager.addView(view, layoutParams(style)) }
             .onSuccess { android.util.Log.d("SelahOverlay", "addView ok: ${verse.reference}") }
             .onFailure { android.util.Log.e("SelahOverlay", "addView failed", it); removeNow(); return }
 
@@ -106,24 +110,39 @@ class OverlayController(private val context: Context) {
         currentOwner = null
     }
 
-    private fun layoutParams(): WindowManager.LayoutParams {
+    private fun layoutParams(style: DisplayStyle): WindowManager.LayoutParams {
         val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
         } else {
             @Suppress("DEPRECATION")
             WindowManager.LayoutParams.TYPE_PHONE
         }
-        return WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            type,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
-            PixelFormat.TRANSLUCENT,
-        ).apply {
-            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            y = (72 * context.resources.displayMetrics.density).toInt()
+        return if (style == DisplayStyle.FULLSCREEN) {
+            // Opaque, touchable, modal — covers the app/home area (not the status bar) and captures
+            // taps so the moment is undistracted; tap anywhere dismisses, and it auto-dismisses.
+            WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                type,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                PixelFormat.OPAQUE,
+            ).apply { gravity = Gravity.CENTER }
+        } else {
+            // Small floating card; non-blocking — taps outside fall through to the phone.
+            WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                type,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                    WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+                PixelFormat.TRANSLUCENT,
+            ).apply {
+                gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                y = (72 * context.resources.displayMetrics.density).toInt()
+            }
         }
     }
 }

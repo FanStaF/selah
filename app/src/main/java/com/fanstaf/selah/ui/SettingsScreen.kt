@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.fanstaf.selah.data.DisplayMode
+import com.fanstaf.selah.data.DisplayStyle
 import com.fanstaf.selah.data.SelectionStrategy
 import com.fanstaf.selah.data.Settings
 import kotlin.math.roundToInt
@@ -30,6 +31,7 @@ fun SettingsScreen(
     onSelection: (SelectionStrategy) -> Unit,
     onMinInterval: (Int) -> Unit,
     onFontScale: (Float) -> Unit,
+    onDisplayStyle: (DisplayStyle) -> Unit,
 ) {
     Column(
         modifier = modifier
@@ -87,6 +89,28 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+
+        SettingCard("Display style") {
+            ChipRow {
+                FilterChip(
+                    selected = settings.displayStyle == DisplayStyle.FULLSCREEN,
+                    onClick = { onDisplayStyle(DisplayStyle.FULLSCREEN) },
+                    label = { Text("Full screen") },
+                )
+                FilterChip(
+                    selected = settings.displayStyle == DisplayStyle.CARD,
+                    onClick = { onDisplayStyle(DisplayStyle.CARD) },
+                    label = { Text("Card") },
+                )
+            }
+            Text(
+                if (settings.displayStyle == DisplayStyle.FULLSCREEN)
+                    "Covers the screen for a calm, undistracted moment. Tap anywhere to dismiss."
+                else "A small floating card — never blocks your phone; tap outside to dismiss.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
         SettingCard("Duration: ${settings.durationSeconds}s") {
