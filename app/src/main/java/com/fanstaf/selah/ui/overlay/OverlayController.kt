@@ -29,9 +29,11 @@ class OverlayController(private val context: Context) {
 
     private var currentView: ComposeView? = null
     private var currentOwner: OverlayLifecycleOwner? = null
+    private var held = false
 
     fun show(verse: Verse, mode: DisplayMode, style: DisplayStyle, durationSeconds: Int, fontScale: Float) {
         removeNow()
+        held = false
 
         val owner = OverlayLifecycleOwner().apply { onCreate(); onResume() }
         val readMs = durationSeconds.coerceIn(2, 60) * 1000L
@@ -52,8 +54,9 @@ class OverlayController(private val context: Context) {
                         style = style,
                         fontScale = fontScale,
                         revealDelayMs = revealDelayMs,
-                        // Once revealed, give the full read time before auto-dismiss.
-                        onRevealed = { scheduleDismiss(readMs) },
+                        // Once revealed, give the full read time before auto-dismiss (unless held).
+                        onRevealed = { if (!held) scheduleDismiss(readMs) },
+                        onHold = { hold() },
                         onClose = { dismiss() },
                     )
                 }
@@ -94,6 +97,12 @@ class OverlayController(private val context: Context) {
             runCatching { windowManager.removeView(view) }
             owner?.onDestroy()
         }.start()
+    }
+
+    /** Cancel the auto-dismiss so the verse stays until the user dismisses it. */
+    fun hold() {
+        held = true
+        handler.removeCallbacksAndMessages(null)
     }
 
     private fun scheduleDismiss(delayMs: Long) {

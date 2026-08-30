@@ -6,12 +6,15 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -38,8 +41,10 @@ import kotlinx.coroutines.delay
 /**
  * The verse shown after unlock. Two styles:
  *  - CARD: a small floating card; the window is non-blocking (taps outside fall through).
- *  - FULLSCREEN: an opaque panel over the whole app area (tap anywhere to reveal/dismiss),
- *    hiding wallpaper and icons for a calmer moment.
+ *  - FULLSCREEN: an opaque panel over the whole app area (tap anywhere to reveal/dismiss).
+ *
+ * A quiet "Selah" button holds the moment open — cancelling the auto-dismiss timer so the verse
+ * stays until the user dismisses it, for those who want to pause and reflect longer.
  */
 @Composable
 fun VerseOverlay(
@@ -51,6 +56,7 @@ fun VerseOverlay(
     fontScale: Float,
     revealDelayMs: Long,
     onRevealed: () -> Unit,
+    onHold: () -> Unit,
     onClose: () -> Unit,
 ) {
     var revealed by remember { mutableStateOf(mode == DisplayMode.READ) }
@@ -78,6 +84,7 @@ fun VerseOverlay(
             revealed = revealed,
             fontScale = fontScale,
             onTap = { if (revealed) onClose() else reveal() },
+            onHold = onHold,
         )
         DisplayStyle.CARD -> CardOverlay(
             reference = reference,
@@ -86,8 +93,35 @@ fun VerseOverlay(
             revealed = revealed,
             fontScale = fontScale,
             onReveal = { reveal() },
+            onHold = onHold,
             onClose = onClose,
         )
+    }
+}
+
+/** Quiet, low-emphasis control to hold the verse open past the timer. */
+@Composable
+private fun SelahHold(onHold: () -> Unit) {
+    var held by remember { mutableStateOf(false) }
+    if (held) {
+        Text(
+            "Reflecting — tap to close",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    } else {
+        TextButton(onClick = { held = true; onHold() }) {
+            Icon(
+                Icons.Filled.Pause,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.secondary,
+            )
+            Text(
+                "  Selah",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.secondary,
+            )
+        }
     }
 }
 
@@ -99,6 +133,7 @@ private fun FullScreenOverlay(
     revealed: Boolean,
     fontScale: Float,
     onTap: () -> Unit,
+    onHold: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     Box(
@@ -119,7 +154,7 @@ private fun FullScreenOverlay(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             Text(
                 text = reference.uppercase(),
@@ -152,6 +187,8 @@ private fun FullScreenOverlay(
                     color = scheme.onSurfaceVariant,
                 )
             }
+            Spacer(Modifier.height(4.dp))
+            SelahHold(onHold = onHold)
         }
     }
 }
@@ -164,6 +201,7 @@ private fun CardOverlay(
     revealed: Boolean,
     fontScale: Float,
     onReveal: () -> Unit,
+    onHold: () -> Unit,
     onClose: () -> Unit,
 ) {
     Card(
@@ -180,9 +218,9 @@ private fun CardOverlay(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 24.dp, end = 24.dp, top = 22.dp, bottom = 20.dp),
+                    .padding(start = 24.dp, end = 24.dp, top = 22.dp, bottom = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
                     text = reference.uppercase(),
@@ -210,6 +248,7 @@ private fun CardOverlay(
                     )
                     TextButton(onClick = onReveal) { Text("Reveal") }
                 }
+                SelahHold(onHold = onHold)
             }
 
             IconButton(
