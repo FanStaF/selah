@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.WbTwilight
@@ -24,8 +25,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.fanstaf.selah.data.DisplayMode
+import com.fanstaf.selah.ui.BrowseScreen
 import com.fanstaf.selah.ui.MainViewModel
 import com.fanstaf.selah.ui.SettingsScreen
 import com.fanstaf.selah.ui.TodayScreen
@@ -48,6 +53,11 @@ class MainActivity : ComponentActivity() {
 
     private val notificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* best-effort */ }
+
+    private val importDocument =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri != null) vm.importFromUri(uri)
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,6 +81,7 @@ class MainActivity : ComponentActivity() {
                     onRequestOverlay = ::requestOverlayPermission,
                     onEnableToggle = ::onEnableToggle,
                     onPreview = ::previewVerse,
+                    onImport = { importDocument.launch(arrayOf("text/xml", "application/xml", "*/*")) },
                 )
             }
         }
@@ -125,7 +136,9 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Tab(val label: String) { Today("Today"), Verses("Verses"), Settings("Settings") }
+private enum class Tab(val label: String) {
+    Today("Today"), Verses("Verses"), Browse("Browse"), Settings("Settings")
+}
 
 @Composable
 private fun MainScaffold(
@@ -134,12 +147,24 @@ private fun MainScaffold(
     onRequestOverlay: () -> Unit,
     onEnableToggle: (Boolean) -> Unit,
     onPreview: () -> Unit,
+    onImport: () -> Unit,
 ) {
     var tab by remember { mutableStateOf(Tab.Today) }
     val settings by vm.settings.collectAsState()
     val verses by vm.verses.collectAsState()
+    val translations by vm.translations.collectAsState()
+    val message by vm.message.collectAsState()
+    val snackbar = remember { SnackbarHostState() }
+
+    LaunchedEffect(message) {
+        message?.let {
+            snackbar.showSnackbar(it)
+            vm.clearMessage()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
@@ -153,6 +178,12 @@ private fun MainScaffold(
                     onClick = { tab = Tab.Verses },
                     icon = { Icon(Icons.Filled.List, contentDescription = null) },
                     label = { Text(Tab.Verses.label) },
+                )
+                NavigationBarItem(
+                    selected = tab == Tab.Browse,
+                    onClick = { tab = Tab.Browse },
+                    icon = { Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null) },
+                    label = { Text(Tab.Browse.label) },
                 )
                 NavigationBarItem(
                     selected = tab == Tab.Settings,
@@ -184,6 +215,12 @@ private fun MainScaffold(
                 onDelete = vm::deleteVerse,
                 onSetActive = vm::setActive,
                 onSetSingle = vm::setSingleVerse,
+            )
+            Tab.Browse -> BrowseScreen(
+                modifier = contentModifier,
+                vm = vm,
+                translations = translations,
+                onImport = onImport,
             )
             Tab.Settings -> SettingsScreen(
                 modifier = contentModifier,

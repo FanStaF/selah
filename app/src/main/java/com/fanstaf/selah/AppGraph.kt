@@ -1,6 +1,7 @@
 package com.fanstaf.selah
 
 import android.content.Context
+import com.fanstaf.selah.data.CorpusRepository
 import com.fanstaf.selah.data.SettingsStore
 import com.fanstaf.selah.data.VerseDatabase
 import com.fanstaf.selah.data.VerseRepository
@@ -14,6 +15,8 @@ object AppGraph {
 
     lateinit var repository: VerseRepository
         private set
+    lateinit var corpus: CorpusRepository
+        private set
     lateinit var settings: SettingsStore
         private set
 
@@ -22,7 +25,9 @@ object AppGraph {
         synchronized(this) {
             if (initialized) return
             val app = context.applicationContext
-            repository = VerseRepository(VerseDatabase.get(app).verseDao(), app)
+            val db = VerseDatabase.get(app)
+            repository = VerseRepository(db.verseDao(), app)
+            corpus = CorpusRepository(db.corpusDao(), db.verseDao(), app)
             settings = SettingsStore(app)
             initialized = true
         }

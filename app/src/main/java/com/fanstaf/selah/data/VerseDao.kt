@@ -21,6 +21,9 @@ interface VerseDao {
     @Query("SELECT * FROM verses WHERE id = :id")
     suspend fun byId(id: Long): Verse?
 
+    @Query("SELECT COUNT(*) FROM verses WHERE translation = :translation AND bookNumber = :book AND chapter = :chapter AND verse = :verse")
+    suspend fun countMatching(translation: String, book: Int, chapter: Int, verse: Int): Int
+
     @Insert
     suspend fun insert(verse: Verse): Long
 

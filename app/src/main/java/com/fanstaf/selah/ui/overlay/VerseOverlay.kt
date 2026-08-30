@@ -131,6 +131,7 @@ private fun FullScreenOverlay(
                 Text(
                     text = text,
                     style = verseTextStyle(MaterialTheme.typography.headlineMedium, fontScale),
+                    color = scheme.onBackground,
                     textAlign = TextAlign.Center,
                 )
                 Text(

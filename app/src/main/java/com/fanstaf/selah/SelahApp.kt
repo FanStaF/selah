@@ -14,8 +14,11 @@ class SelahApp : Application() {
         super.onCreate()
         AppGraph.init(this)
         createNotificationChannel()
-        // Seed bundled verses off the main thread on first launch.
-        CoroutineScope(Dispatchers.IO).launch { AppGraph.repository.ensureSeeded() }
+        // Seed bundled starter verses + the KJV corpus off the main thread on first launch.
+        CoroutineScope(Dispatchers.IO).launch {
+            AppGraph.repository.ensureSeeded()
+            AppGraph.corpus.ensureKjvSeeded()
+        }
     }
 
     private fun createNotificationChannel() {

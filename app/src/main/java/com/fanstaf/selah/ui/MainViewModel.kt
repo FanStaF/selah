@@ -1,24 +1,38 @@
 package com.fanstaf.selah.ui
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.fanstaf.selah.AppGraph
+import com.fanstaf.selah.data.CorpusTranslation
+import com.fanstaf.selah.data.CorpusVerse
 import com.fanstaf.selah.data.DisplayMode
 import com.fanstaf.selah.data.DisplayStyle
 import com.fanstaf.selah.data.SelectionStrategy
 import com.fanstaf.selah.data.Settings
 import com.fanstaf.selah.data.Verse
 import com.fanstaf.selah.service.UnlockService
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = AppGraph.repository
+    private val corpus = AppGraph.corpus
     private val store = AppGraph.settings
+
+    val translations: StateFlow<List<CorpusTranslation>> = corpus.observeTranslations()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Transient user-facing message (verse added, import result). */
+    val message = MutableStateFlow<String?>(null)
+    fun clearMessage() { message.value = null }
 
     val settings: StateFlow<Settings> = store.settings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Settings())
@@ -49,4 +63,30 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun updateVerse(verse: Verse) = viewModelScope.launch { repo.update(verse) }
     fun deleteVerse(verse: Verse) = viewModelScope.launch { repo.delete(verse) }
     fun setActive(id: Long, active: Boolean) = viewModelScope.launch { repo.setActive(id, active) }
+
+    // --- Corpus browse + import ---
+
+    suspend fun books(code: String): List<Int> = corpus.books(code)
+    suspend fun chapters(code: String, book: Int): List<Int> = corpus.chapters(code, book)
+    suspend fun versesIn(code: String, book: Int, chapter: Int): List<CorpusVerse> =
+        corpus.versesIn(code, book, chapter)
+
+    fun addToStudy(cv: CorpusVerse) = viewModelScope.launch {
+        val added = corpus.addToStudy(cv)
+        message.value = if (added) "Added ${com.fanstaf.selah.data.BookNames.reference(cv.bookNumber, cv.chapter, cv.verse)}"
+        else "Already in your verses"
+    }
+
+    fun importFromUri(uri: Uri) = viewModelScope.launch {
+        message.value = "Importing…"
+        val result = withContext(Dispatchers.IO) {
+            runCatching {
+                getApplication<Application>().contentResolver.openInputStream(uri)?.use {
+                    corpus.importStream(it)
+                }
+            }.getOrNull()
+        }
+        message.value = if (result != null) "Imported ${result.name} (${result.verseCount} verses)"
+        else "Import failed — is it a Bible XML file?"
+    }
 }

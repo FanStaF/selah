@@ -23,9 +23,14 @@ data class Verse(
     val lastShownAt: Long = 0L,
     val orderIndex: Int = 0,
     val createdAt: Long = System.currentTimeMillis(),
+    // Corpus coordinates when this verse was picked from a translation (null for typed verses).
+    val bookNumber: Int? = null,
+    val chapter: Int? = null,
+    val verse: Int? = null,
 ) {
     companion object {
         const val SOURCE_BUNDLED = "BUNDLED"
         const val SOURCE_USER = "USER"
+        const val SOURCE_CORPUS = "CORPUS"
     }
 }
