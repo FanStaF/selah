@@ -99,28 +99,31 @@ fun VerseOverlay(
     }
 }
 
-/** Quiet, low-emphasis control to hold the verse open past the timer. */
+/** Quiet, low-emphasis control to hold the verse open past the timer. Fixed height so the layout
+ * doesn't shift when it toggles to the reflecting hint. */
 @Composable
 private fun SelahHold(onHold: () -> Unit) {
     var held by remember { mutableStateOf(false) }
-    if (held) {
-        Text(
-            "Reflecting — tap to close",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    } else {
-        TextButton(onClick = { held = true; onHold() }) {
-            Icon(
-                Icons.Filled.Pause,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.secondary,
-            )
+    Box(Modifier.height(48.dp), contentAlignment = Alignment.Center) {
+        if (held) {
             Text(
-                "  Selah",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.secondary,
+                "Reflecting — tap to close",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        } else {
+            TextButton(onClick = { held = true; onHold() }) {
+                Icon(
+                    Icons.Filled.Pause,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.secondary,
+                )
+                Text(
+                    "  Selah",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.secondary,
+                )
+            }
         }
     }
 }
