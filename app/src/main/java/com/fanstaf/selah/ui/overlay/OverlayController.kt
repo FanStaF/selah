@@ -34,7 +34,7 @@ class OverlayController(private val context: Context) {
         removeNow()
 
         val owner = OverlayLifecycleOwner().apply { onCreate(); onResume() }
-        val readMs = durationSeconds.coerceIn(2, 30) * 1000L
+        val readMs = durationSeconds.coerceIn(2, 60) * 1000L
         val revealDelayMs = minOf(2000L, readMs / 2)
 
         val view = ComposeView(context).apply {

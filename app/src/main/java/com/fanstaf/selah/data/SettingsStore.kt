@@ -35,6 +35,8 @@ data class Settings(
     val lastShownAt: Long = 0L,
     val fontScale: Float = 1.0f,
     val displayStyle: DisplayStyle = DisplayStyle.FULLSCREEN,
+    /** Which set feeds the rotation; VerseSet.ALL (-1) = all sets. */
+    val scopeSetId: Long = -1L,
 )
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "selah_settings")
@@ -52,6 +54,7 @@ class SettingsStore(private val context: Context) {
         val LAST_SHOWN = longPreferencesKey("last_shown_at")
         val FONT_SCALE = floatPreferencesKey("font_scale")
         val DISPLAY_STYLE = stringPreferencesKey("display_style")
+        val SCOPE_SET_ID = longPreferencesKey("scope_set_id")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { p ->
@@ -66,6 +69,7 @@ class SettingsStore(private val context: Context) {
             lastShownAt = p[Keys.LAST_SHOWN] ?: 0L,
             fontScale = p[Keys.FONT_SCALE] ?: 1.0f,
             displayStyle = (p[Keys.DISPLAY_STYLE]?.let { runCatching { DisplayStyle.valueOf(it) }.getOrNull() }) ?: DisplayStyle.FULLSCREEN,
+            scopeSetId = p[Keys.SCOPE_SET_ID] ?: -1L,
         )
     }
 
@@ -77,6 +81,7 @@ class SettingsStore(private val context: Context) {
     suspend fun setSingleVerseId(v: Long) = context.dataStore.edit { it[Keys.SINGLE_ID] = v }
     suspend fun setFontScale(v: Float) = context.dataStore.edit { it[Keys.FONT_SCALE] = v }
     suspend fun setDisplayStyle(v: DisplayStyle) = context.dataStore.edit { it[Keys.DISPLAY_STYLE] = v.name }
+    suspend fun setScopeSetId(v: Long) = context.dataStore.edit { it[Keys.SCOPE_SET_ID] = v }
 
     suspend fun setCursor(v: Int) = context.dataStore.edit { it[Keys.CURSOR] = v }
     suspend fun setLastShownAt(v: Long) = context.dataStore.edit { it[Keys.LAST_SHOWN] = v }

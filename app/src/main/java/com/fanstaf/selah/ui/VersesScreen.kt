@@ -11,16 +11,21 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -35,14 +40,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.fanstaf.selah.data.Verse
+import com.fanstaf.selah.data.VerseSet
 
 @Composable
 fun VersesScreen(
     modifier: Modifier = Modifier,
     verses: List<Verse>,
+    sets: List<VerseSet>,
+    selectedSetId: Long,
     singleVerseId: Long,
     selectionIsSingle: Boolean,
-    onAdd: (String, String, String) -> Unit,
+    onSelectSet: (Long) -> Unit,
+    onCreateSet: (String) -> Unit,
+    onRenameSet: (VerseSet, String) -> Unit,
+    onDeleteSet: (VerseSet) -> Unit,
+    onAdd: (String, String, String, Long) -> Unit,
     onUpdate: (Verse) -> Unit,
     onDelete: (Verse) -> Unit,
     onSetActive: (Long, Boolean) -> Unit,
@@ -50,32 +62,54 @@ fun VersesScreen(
 ) {
     var editing by remember { mutableStateOf<Verse?>(null) }
     var adding by remember { mutableStateOf(false) }
+    var creatingSet by remember { mutableStateOf(false) }
+    var renamingSet by remember { mutableStateOf<VerseSet?>(null) }
+    var confirmDeleteSet by remember { mutableStateOf<VerseSet?>(null) }
+
+    val currentSet = sets.firstOrNull { it.id == selectedSetId }
+    val shown = if (selectedSetId == VerseSet.ALL) verses else verses.filter { it.setId == selectedSetId }
 
     Box(modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp,
-            ),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            item {
-                Text(
-                    "Your verses",
-                    style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.padding(bottom = 4.dp),
-                )
-            }
-            items(verses, key = { it.id }) { verse ->
-                VerseRow(
-                    verse = verse,
-                    isSingle = selectionIsSingle && verse.id == singleVerseId,
-                    showStar = selectionIsSingle,
-                    onToggleActive = { onSetActive(verse.id, it) },
-                    onEdit = { editing = verse },
-                    onDelete = { onDelete(verse) },
-                    onSetSingle = { onSetSingle(verse.id) },
-                )
+        Column(Modifier.fillMaxSize()) {
+            // Set selector row
+            SetSelectorRow(
+                sets = sets,
+                selectedSetId = selectedSetId,
+                currentSet = currentSet,
+                onSelectSet = onSelectSet,
+                onNewSet = { creatingSet = true },
+                onRename = { currentSet?.let { renamingSet = it } },
+                onDelete = { currentSet?.let { confirmDeleteSet = it } },
+            )
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                if (shown.isEmpty()) {
+                    item {
+                        Text(
+                            "No verses here yet. Use Browse to pick verses, or ＋ to type one.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 24.dp),
+                        )
+                    }
+                }
+                items(shown, key = { it.id }) { verse ->
+                    VerseRow(
+                        verse = verse,
+                        isSingle = selectionIsSingle && verse.id == singleVerseId,
+                        showStar = selectionIsSingle,
+                        onToggleActive = { onSetActive(verse.id, it) },
+                        onEdit = { editing = verse },
+                        onDelete = { onDelete(verse) },
+                        onSetSingle = { onSetSingle(verse.id) },
+                    )
+                }
             }
         }
 
@@ -83,9 +117,7 @@ fun VersesScreen(
             onClick = { adding = true },
             icon = { Icon(Icons.Filled.Add, contentDescription = null) },
             text = { Text("Add verse") },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp),
+            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
         )
     }
 
@@ -93,7 +125,7 @@ fun VersesScreen(
         VerseDialog(
             initial = null,
             onDismiss = { adding = false },
-            onSave = { ref, text, tr -> onAdd(ref, text, tr); adding = false },
+            onSave = { ref, text, tr -> onAdd(ref, text, tr, selectedSetId); adding = false },
         )
     }
     editing?.let { verse ->
@@ -105,6 +137,82 @@ fun VersesScreen(
                 editing = null
             },
         )
+    }
+    if (creatingSet) {
+        SetNameDialog(
+            title = "New set",
+            initial = "",
+            onDismiss = { creatingSet = false },
+            onSave = { name -> onCreateSet(name); creatingSet = false },
+        )
+    }
+    renamingSet?.let { s ->
+        SetNameDialog(
+            title = "Rename set",
+            initial = s.name,
+            onDismiss = { renamingSet = null },
+            onSave = { name -> onRenameSet(s, name); renamingSet = null },
+        )
+    }
+    confirmDeleteSet?.let { s ->
+        AlertDialog(
+            onDismissRequest = { confirmDeleteSet = null },
+            title = { Text("Delete \"${s.name}\"?") },
+            text = { Text("Verses in this set will move to another set. This can't be undone.") },
+            confirmButton = {
+                TextButton(onClick = { onDeleteSet(s); confirmDeleteSet = null }) { Text("Delete") }
+            },
+            dismissButton = { TextButton(onClick = { confirmDeleteSet = null }) { Text("Cancel") } },
+        )
+    }
+}
+
+@Composable
+private fun SetSelectorRow(
+    sets: List<VerseSet>,
+    selectedSetId: Long,
+    currentSet: VerseSet?,
+    onSelectSet: (Long) -> Unit,
+    onNewSet: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val label = currentSet?.name ?: "All verses"
+
+    Row(
+        Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.weight(1f)) {
+            OutlinedButton(onClick = { expanded = true }) {
+                Text(label, maxLines = 1)
+                Icon(Icons.Filled.ArrowDropDown, contentDescription = "Choose set")
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                DropdownMenuItem(
+                    text = { Text("All verses") },
+                    onClick = { onSelectSet(VerseSet.ALL); expanded = false },
+                )
+                sets.forEach { s ->
+                    DropdownMenuItem(
+                        text = { Text(s.name) },
+                        onClick = { onSelectSet(s.id); expanded = false },
+                    )
+                }
+                Divider()
+                DropdownMenuItem(
+                    text = { Text("＋ New set…") },
+                    onClick = { onNewSet(); expanded = false },
+                )
+            }
+        }
+        if (currentSet != null) {
+            IconButton(onClick = onRename) { Icon(Icons.Filled.Edit, contentDescription = "Rename set") }
+            if (sets.size > 1) {
+                IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, contentDescription = "Delete set") }
+            }
+        }
     }
 }
 
@@ -156,12 +264,8 @@ private fun VerseRow(
                     modifier = Modifier.padding(start = 8.dp),
                 )
                 Box(Modifier.weight(1f))
-                IconButton(onClick = onEdit) {
-                    Icon(Icons.Filled.Edit, contentDescription = "Edit")
-                }
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Filled.Delete, contentDescription = "Delete")
-                }
+                IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, contentDescription = "Edit") }
+                IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, contentDescription = "Delete") }
             }
         }
     }
@@ -183,23 +287,17 @@ private fun VerseDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
-                    value = reference,
-                    onValueChange = { reference = it },
-                    label = { Text("Reference (e.g. John 3:16)") },
-                    singleLine = true,
+                    value = reference, onValueChange = { reference = it },
+                    label = { Text("Reference (e.g. John 3:16)") }, singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    label = { Text("Verse text") },
-                    modifier = Modifier.fillMaxWidth(),
+                    value = text, onValueChange = { text = it },
+                    label = { Text("Verse text") }, modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
-                    value = translation,
-                    onValueChange = { translation = it },
-                    label = { Text("Translation (e.g. KJV, ESV)") },
-                    singleLine = true,
+                    value = translation, onValueChange = { translation = it },
+                    label = { Text("Translation (e.g. KJV, ESV)") }, singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -209,6 +307,31 @@ private fun VerseDialog(
                 onClick = { onSave(reference.trim(), text.trim(), translation.trim()) },
                 enabled = reference.isNotBlank() && text.isNotBlank(),
             ) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun SetNameDialog(
+    title: String,
+    initial: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit,
+) {
+    var name by remember { mutableStateOf(initial) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = name, onValueChange = { name = it },
+                label = { Text("Set name") }, singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(name.trim()) }, enabled = name.isNotBlank()) { Text("Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )

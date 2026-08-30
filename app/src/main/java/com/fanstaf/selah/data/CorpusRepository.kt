@@ -50,7 +50,7 @@ class CorpusRepository(
      * Copy a corpus verse into the user's study list (a stable snapshot). Skips if the same verse
      * in the same translation is already there. Returns true if added.
      */
-    suspend fun addToStudy(cv: CorpusVerse): Boolean {
+    suspend fun addToStudy(cv: CorpusVerse, setId: Long): Boolean {
         val exists = verseDao.countMatching(cv.translationCode, cv.bookNumber, cv.chapter, cv.verse) > 0
         if (exists) return false
         verseDao.insert(
@@ -64,6 +64,7 @@ class CorpusRepository(
                 bookNumber = cv.bookNumber,
                 chapter = cv.chapter,
                 verse = cv.verse,
+                setId = setId,
             ),
         )
         return true

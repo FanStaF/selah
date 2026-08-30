@@ -26,7 +26,7 @@ object AppGraph {
             if (initialized) return
             val app = context.applicationContext
             val db = VerseDatabase.get(app)
-            repository = VerseRepository(db.verseDao(), app)
+            repository = VerseRepository(db.verseDao(), db.setDao(), app)
             corpus = CorpusRepository(db.corpusDao(), db.verseDao(), app)
             settings = SettingsStore(app)
             initialized = true

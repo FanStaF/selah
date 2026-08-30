@@ -152,6 +152,8 @@ private fun MainScaffold(
     var tab by remember { mutableStateOf(Tab.Today) }
     val settings by vm.settings.collectAsState()
     val verses by vm.verses.collectAsState()
+    val sets by vm.sets.collectAsState()
+    val selectedSetId by vm.selectedSetId.collectAsState()
     val translations by vm.translations.collectAsState()
     val message by vm.message.collectAsState()
     val snackbar = remember { SnackbarHostState() }
@@ -208,8 +210,14 @@ private fun MainScaffold(
             Tab.Verses -> VersesScreen(
                 modifier = contentModifier,
                 verses = verses,
+                sets = sets,
+                selectedSetId = selectedSetId,
                 singleVerseId = settings.singleVerseId,
                 selectionIsSingle = settings.selection == com.fanstaf.selah.data.SelectionStrategy.SINGLE,
+                onSelectSet = vm::selectSet,
+                onCreateSet = { name -> vm.createSet(name) },
+                onRenameSet = vm::renameSet,
+                onDeleteSet = vm::deleteSet,
                 onAdd = vm::addVerse,
                 onUpdate = vm::updateVerse,
                 onDelete = vm::deleteVerse,
@@ -225,12 +233,14 @@ private fun MainScaffold(
             Tab.Settings -> SettingsScreen(
                 modifier = contentModifier,
                 settings = settings,
+                sets = sets,
                 onDuration = vm::setDuration,
                 onMode = vm::setMode,
                 onSelection = vm::setSelection,
                 onMinInterval = vm::setMinInterval,
                 onFontScale = vm::setFontScale,
                 onDisplayStyle = vm::setDisplayStyle,
+                onScope = vm::setScopeSetId,
             )
         }
     }

@@ -23,14 +23,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Divider
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import com.fanstaf.selah.data.BookNames
 import com.fanstaf.selah.data.CorpusTranslation
 import com.fanstaf.selah.data.CorpusVerse
+import com.fanstaf.selah.data.VerseSet
 import com.fanstaf.selah.ui.theme.bookColor
 
 @Composable
@@ -55,6 +61,10 @@ fun BrowseScreen(
     translations: List<CorpusTranslation>,
     onImport: () -> Unit,
 ) {
+    val sets by vm.sets.collectAsState()
+    val selectedSetId by vm.selectedSetId.collectAsState()
+    var pendingAdd by remember { mutableStateOf<CorpusVerse?>(null) }
+
     var code by remember { mutableStateOf<String?>(null) }
     var book by remember { mutableStateOf<Int?>(null) }
     var chapter by remember { mutableStateOf<Int?>(null) }
@@ -173,10 +183,80 @@ fun BrowseScreen(
                 verses = verses,
                 selectedVerse = selectedVerse!!,
                 onBack = { selectedVerse = null },
-                onAdd = { vm.addToStudy(it) },
+                onAdd = { pendingAdd = it },
             )
         }
     }
+
+    pendingAdd?.let { cv ->
+        SetPickerDialog(
+            sets = sets,
+            defaultSetId = selectedSetId,
+            onDismiss = { pendingAdd = null },
+            onPick = { setId -> vm.addToStudy(cv, setId); pendingAdd = null },
+            onCreateAndPick = { name -> vm.createSet(name) { id -> vm.addToStudy(cv, id) }; pendingAdd = null },
+        )
+    }
+}
+
+@Composable
+private fun SetPickerDialog(
+    sets: List<VerseSet>,
+    defaultSetId: Long,
+    onDismiss: () -> Unit,
+    onPick: (Long) -> Unit,
+    onCreateAndPick: (String) -> Unit,
+) {
+    var creating by remember { mutableStateOf(false) }
+    var newName by remember { mutableStateOf("") }
+    // Show the current set first as the obvious default.
+    val ordered = sets.sortedByDescending { it.id == defaultSetId }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (creating) "New set" else "Add to which set?") },
+        text = {
+            if (creating) {
+                OutlinedTextField(
+                    value = newName, onValueChange = { newName = it },
+                    label = { Text("Set name") }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                Column {
+                    ordered.forEach { s ->
+                        val isDefault = s.id == defaultSetId
+                        TextButton(
+                            onClick = { onPick(s.id) },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                if (isDefault) "${s.name}  (current)" else s.name,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
+                    Divider()
+                    TextButton(onClick = { creating = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text("＋ New set…", modifier = Modifier.fillMaxWidth())
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            if (creating) {
+                TextButton(
+                    onClick = { onCreateAndPick(newName.trim()) },
+                    enabled = newName.isNotBlank(),
+                ) { Text("Create & add") }
+            } else {
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+            }
+        },
+        dismissButton = if (creating) {
+            { TextButton(onClick = { creating = false }) { Text("Back") } }
+        } else null,
+    )
 }
 
 @Composable

@@ -15,6 +15,13 @@ interface VerseDao {
     @Query("SELECT * FROM verses WHERE active = 1 ORDER BY orderIndex, id")
     suspend fun activeVerses(): List<Verse>
 
+    /** Active verses within a set, or all active verses when [setId] is VerseSet.ALL (-1). */
+    @Query("SELECT * FROM verses WHERE active = 1 AND (:setId < 0 OR setId = :setId) ORDER BY orderIndex, id")
+    suspend fun activeVersesScoped(setId: Long): List<Verse>
+
+    @Query("UPDATE verses SET setId = :to WHERE setId = :from")
+    suspend fun reassignSet(from: Long, to: Long)
+
     @Query("SELECT COUNT(*) FROM verses")
     suspend fun count(): Int
 

@@ -8,13 +8,14 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [Verse::class, CorpusTranslation::class, CorpusVerse::class],
-    version = 2,
+    entities = [Verse::class, CorpusTranslation::class, CorpusVerse::class, VerseSet::class],
+    version = 3,
     exportSchema = false,
 )
 abstract class VerseDatabase : RoomDatabase() {
     abstract fun verseDao(): VerseDao
     abstract fun corpusDao(): CorpusDao
+    abstract fun setDao(): SetDao
 
     companion object {
         @Volatile private var instance: VerseDatabase? = null
@@ -49,13 +50,31 @@ abstract class VerseDatabase : RoomDatabase() {
             }
         }
 
+        // v2 -> v3: add the verse_sets table + a setId on study verses, seed a default "My Verses"
+        // set, and move existing verses into it.
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `verse_sets` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`name` TEXT NOT NULL, `orderIndex` INTEGER NOT NULL)",
+                )
+                db.execSQL("INSERT INTO `verse_sets` (`name`, `orderIndex`) VALUES ('My Verses', 0)")
+                db.execSQL("ALTER TABLE `verses` ADD COLUMN `setId` INTEGER")
+                db.execSQL(
+                    "UPDATE `verses` SET `setId` = " +
+                        "(SELECT `id` FROM `verse_sets` ORDER BY `orderIndex`, `id` LIMIT 1)",
+                )
+            }
+        }
+
         fun get(context: Context): VerseDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     VerseDatabase::class.java,
                     "selah.db",
-                ).addMigrations(MIGRATION_1_2).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
             }
     }
 }

@@ -27,6 +27,8 @@ data class Verse(
     val bookNumber: Int? = null,
     val chapter: Int? = null,
     val verse: Int? = null,
+    // The set this verse belongs to (null only transiently before assignment to the default set).
+    val setId: Long? = null,
 ) {
     companion object {
         const val SOURCE_BUNDLED = "BUNDLED"

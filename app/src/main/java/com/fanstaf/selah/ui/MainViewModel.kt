@@ -12,6 +12,7 @@ import com.fanstaf.selah.data.DisplayStyle
 import com.fanstaf.selah.data.SelectionStrategy
 import com.fanstaf.selah.data.Settings
 import com.fanstaf.selah.data.Verse
+import com.fanstaf.selah.data.VerseSet
 import com.fanstaf.selah.service.UnlockService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,6 +41,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val verses: StateFlow<List<Verse>> = repo.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    val sets: StateFlow<List<VerseSet>> = repo.observeSets()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** The set currently in focus on the Verses screen (also the default target when adding). */
+    val selectedSetId = MutableStateFlow(VerseSet.ALL)
+    fun selectSet(id: Long) { selectedSetId.value = id }
+
     /** Only turns the feature on if overlay permission is already granted (checked by the Activity). */
     fun setEnabled(enabled: Boolean) {
         val app = getApplication<Application>()
@@ -56,13 +64,27 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setSingleVerse(id: Long) = viewModelScope.launch { store.setSingleVerseId(id) }
     fun setFontScale(scale: Float) = viewModelScope.launch { store.setFontScale(scale) }
     fun setDisplayStyle(style: DisplayStyle) = viewModelScope.launch { store.setDisplayStyle(style) }
+    fun setScopeSetId(id: Long) = viewModelScope.launch { store.setScopeSetId(id) }
 
-    fun addVerse(reference: String, text: String, translation: String) =
-        viewModelScope.launch { repo.addUserVerse(reference, text, translation) }
+    /** Add a typed verse to a set (or to the default set when [setId] is ALL/unset). */
+    fun addVerse(reference: String, text: String, translation: String, setId: Long) =
+        viewModelScope.launch {
+            val target = if (setId >= 0) setId else repo.ensureDefaultSet()
+            repo.addUserVerse(reference, text, translation, target)
+        }
 
     fun updateVerse(verse: Verse) = viewModelScope.launch { repo.update(verse) }
     fun deleteVerse(verse: Verse) = viewModelScope.launch { repo.delete(verse) }
     fun setActive(id: Long, active: Boolean) = viewModelScope.launch { repo.setActive(id, active) }
+
+    // --- Sets ---
+
+    fun createSet(name: String, onCreated: (Long) -> Unit = {}) = viewModelScope.launch {
+        val id = repo.createSet(name)
+        onCreated(id)
+    }
+    fun renameSet(set: VerseSet, name: String) = viewModelScope.launch { repo.renameSet(set, name) }
+    fun deleteSet(set: VerseSet) = viewModelScope.launch { repo.deleteSet(set) }
 
     // --- Corpus browse + import ---
 
@@ -71,8 +93,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     suspend fun versesIn(code: String, book: Int, chapter: Int): List<CorpusVerse> =
         corpus.versesIn(code, book, chapter)
 
-    fun addToStudy(cv: CorpusVerse) = viewModelScope.launch {
-        val added = corpus.addToStudy(cv)
+    fun addToStudy(cv: CorpusVerse, setId: Long) = viewModelScope.launch {
+        val target = if (setId >= 0) setId else repo.ensureDefaultSet()
+        val added = corpus.addToStudy(cv, target)
         message.value = if (added) "Added ${com.fanstaf.selah.data.BookNames.reference(cv.bookNumber, cv.chapter, cv.verse)}"
         else "Already in your verses"
     }

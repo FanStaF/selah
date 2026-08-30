@@ -118,7 +118,7 @@ class UnlockService : Service() {
     private data class Pick(val verse: Verse, val nextCursor: Int)
 
     private suspend fun selectVerse(settings: Settings): Pick? {
-        val active = AppGraph.repository.activeVerses()
+        val active = AppGraph.repository.activeVersesScoped(settings.scopeSetId)
         if (active.isEmpty()) return null
         return when (settings.selection) {
             SelectionStrategy.SINGLE -> {

@@ -8,8 +8,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -20,18 +25,21 @@ import com.fanstaf.selah.data.DisplayMode
 import com.fanstaf.selah.data.DisplayStyle
 import com.fanstaf.selah.data.SelectionStrategy
 import com.fanstaf.selah.data.Settings
+import com.fanstaf.selah.data.VerseSet
 import kotlin.math.roundToInt
 
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
     settings: Settings,
+    sets: List<VerseSet>,
     onDuration: (Int) -> Unit,
     onMode: (DisplayMode) -> Unit,
     onSelection: (SelectionStrategy) -> Unit,
     onMinInterval: (Int) -> Unit,
     onFontScale: (Float) -> Unit,
     onDisplayStyle: (DisplayStyle) -> Unit,
+    onScope: (Long) -> Unit,
 ) {
     Column(
         modifier = modifier
@@ -91,6 +99,30 @@ fun SettingsScreen(
             }
         }
 
+        if (settings.selection != SelectionStrategy.SINGLE) {
+            SettingCard("Show verses from") {
+                ChipRow {
+                    FilterChip(
+                        selected = settings.scopeSetId == VerseSet.ALL,
+                        onClick = { onScope(VerseSet.ALL) },
+                        label = { Text("All sets") },
+                    )
+                    sets.forEach { s ->
+                        FilterChip(
+                            selected = settings.scopeSetId == s.id,
+                            onClick = { onScope(s.id) },
+                            label = { Text(s.name) },
+                        )
+                    }
+                }
+                Text(
+                    "Only verses in the chosen set appear after unlock.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
         SettingCard("Display style") {
             ChipRow {
                 FilterChip(
@@ -113,13 +145,22 @@ fun SettingsScreen(
             )
         }
 
-        SettingCard("Duration: ${settings.durationSeconds}s") {
-            Slider(
-                value = settings.durationSeconds.toFloat(),
-                onValueChange = { onDuration(it.roundToInt()) },
-                valueRange = 3f..10f,
-                steps = 6,
-            )
+        SettingCard("Duration") {
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                FilledTonalIconButton(
+                    onClick = { onDuration((settings.durationSeconds - 1).coerceAtLeast(2)) },
+                    enabled = settings.durationSeconds > 2,
+                ) { Icon(Icons.Filled.Remove, contentDescription = "Less") }
+                Text(
+                    "${settings.durationSeconds}s",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(horizontal = 24.dp),
+                )
+                FilledTonalIconButton(
+                    onClick = { onDuration((settings.durationSeconds + 1).coerceAtMost(60)) },
+                    enabled = settings.durationSeconds < 60,
+                ) { Icon(Icons.Filled.Add, contentDescription = "More") }
+            }
         }
 
         SettingCard("How often") {
