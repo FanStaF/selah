@@ -1,0 +1,30 @@
+{
+  "translationNote": "Starter set in the King James Version (public domain). The full BSB/WEB corpus with browse & search is a planned addition; you can add your own verses in any translation now.",
+  "verses": [
+    { "reference": "John 3:16", "translation": "KJV", "text": "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life." },
+    { "reference": "Philippians 4:13", "translation": "KJV", "text": "I can do all things through Christ which strengtheneth me." },
+    { "reference": "Psalm 23:1", "translation": "KJV", "text": "The LORD is my shepherd; I shall not want." },
+    { "reference": "Proverbs 3:5", "translation": "KJV", "text": "Trust in the LORD with all thine heart; and lean not unto thine own understanding." },
+    { "reference": "Proverbs 3:6", "translation": "KJV", "text": "In all thy ways acknowledge him, and he shall direct thy paths." },
+    { "reference": "Romans 8:28", "translation": "KJV", "text": "And we know that all things work together for good to them that love God, to them who are the called according to his purpose." },
+    { "reference": "Joshua 1:9", "translation": "KJV", "text": "Have not I commanded thee? Be strong and of a good courage; be not afraid, neither be thou dismayed: for the LORD thy God is with thee whithersoever thou goest." },
+    { "reference": "Isaiah 41:10", "translation": "KJV", "text": "Fear thou not; for I am with thee: be not dismayed; for I am thy God: I will strengthen thee; yea, I will help thee; yea, I will uphold thee with the right hand of my righteousness." },
+    { "reference": "Jeremiah 29:11", "translation": "KJV", "text": "For I know the thoughts that I think toward you, saith the LORD, thoughts of peace, and not of evil, to give you an expected end." },
+    { "reference": "Matthew 6:33", "translation": "KJV", "text": "But seek ye first the kingdom of God, and his righteousness; and all these things shall be added unto you." },
+    { "reference": "Psalm 119:11", "translation": "KJV", "text": "Thy word have I hid in mine heart, that I might not sin against thee." },
+    { "reference": "Philippians 4:6", "translation": "KJV", "text": "Be careful for nothing; but in every thing by prayer and supplication with thanksgiving let your requests be made known unto God." },
+    { "reference": "Philippians 4:7", "translation": "KJV", "text": "And the peace of God, which passeth all understanding, shall keep your hearts and minds through Christ Jesus." },
+    { "reference": "2 Timothy 1:7", "translation": "KJV", "text": "For God hath not given us the spirit of fear; but of power, and of love, and of a sound mind." },
+    { "reference": "Hebrews 11:1", "translation": "KJV", "text": "Now faith is the substance of things hoped for, the evidence of things not seen." },
+    { "reference": "Psalm 46:1", "translation": "KJV", "text": "God is our refuge and strength, a very present help in trouble." },
+    { "reference": "Matthew 11:28", "translation": "KJV", "text": "Come unto me, all ye that labour and are heavy laden, and I will give you rest." },
+    { "reference": "John 14:6", "translation": "KJV", "text": "Jesus saith unto him, I am the way, the truth, and the life: no man cometh unto the Father, but by me." },
+    { "reference": "Psalm 118:24", "translation": "KJV", "text": "This is the day which the LORD hath made; we will rejoice and be glad in it." },
+    { "reference": "Romans 12:2", "translation": "KJV", "text": "And be not conformed to this world: but be ye transformed by the renewing of your mind, that ye may prove what is that good, and acceptable, and perfect, will of God." },
+    { "reference": "Ephesians 2:8", "translation": "KJV", "text": "For by grace are ye saved through faith; and that not of yourselves: it is the gift of God." },
+    { "reference": "Galatians 2:20", "translation": "KJV", "text": "I am crucified with Christ: nevertheless I live; yet not I, but Christ liveth in me: and the life which I now live in the flesh I live by the faith of the Son of God, who loved me, and gave himself for me." },
+    { "reference": "1 Corinthians 10:13", "translation": "KJV", "text": "There hath no temptation taken you but such as is common to man: but God is faithful, who will not suffer you to be tempted above that ye are able; but will with the temptation also make a way to escape, that ye may be able to bear it." },
+    { "reference": "Psalm 27:1", "translation": "KJV", "text": "The LORD is my light and my salvation; whom shall I fear? the LORD is the strength of my life; of whom shall I be afraid?" },
+    { "reference": "Colossians 2:8", "translation": "KJV", "text": "Beware lest any man spoil you through philosophy and vain deceit, after the tradition of men, after the rudiments of the world, and not after Christ." }
+  ]
+}

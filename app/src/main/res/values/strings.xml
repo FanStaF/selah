@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Selah</string>
+    <string name="tagline">Scripture in the moments between</string>
+
+    <!-- Foreground service notification -->
+    <string name="fgs_channel_name">Verse reminders</string>
+    <string name="fgs_channel_desc">Keeps Selah ready to show a verse when you unlock your phone.</string>
+    <string name="fgs_notification_title">Selah is watching for unlocks</string>
+    <string name="fgs_notification_text">A verse will appear briefly when you unlock. Tap to open Selah.</string>
+</resources>

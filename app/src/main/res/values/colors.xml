@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand: a calm deep indigo/blue with a warm gold accent. -->
+    <color name="ic_launcher_background">#1E2A4A</color>
+    <color name="brand_gold">#E4B95B</color>
+</resources>
