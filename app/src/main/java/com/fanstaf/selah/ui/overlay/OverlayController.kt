@@ -70,7 +70,8 @@ class OverlayController(private val context: Context) {
         currentOwner = owner
 
         runCatching { windowManager.addView(view, layoutParams()) }
-            .onFailure { removeNow(); return }
+            .onSuccess { android.util.Log.d("SelahOverlay", "addView ok: ${verse.reference}") }
+            .onFailure { android.util.Log.e("SelahOverlay", "addView failed", it); removeNow(); return }
 
         view.animate().alpha(1f).setDuration(180L).start()
 

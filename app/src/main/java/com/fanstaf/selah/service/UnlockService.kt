@@ -11,6 +11,7 @@ import android.content.pm.ServiceInfo
 import android.media.AudioManager
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -61,35 +62,48 @@ class UnlockService : Service() {
     private fun registerUnlockReceiver() {
         val r = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
+                Log.d(TAG, "receiver onReceive: ${intent.action}")
                 if (intent.action == Intent.ACTION_USER_PRESENT) {
                     scope.launch { onUnlock() }
                 }
             }
         }
         receiver = r
-        // USER_PRESENT is a protected system broadcast, so NOT_EXPORTED still receives it.
+        // USER_PRESENT is a protected broadcast (only the system can send it), so EXPORTED is safe
+        // and — unlike NOT_EXPORTED, which was observed to drop it on-device — actually delivered.
         ContextCompat.registerReceiver(
             this,
             r,
             IntentFilter(Intent.ACTION_USER_PRESENT),
-            ContextCompat.RECEIVER_NOT_EXPORTED,
+            ContextCompat.RECEIVER_EXPORTED,
         )
+        Log.d(TAG, "USER_PRESENT receiver registered")
     }
 
     private suspend fun onUnlock() {
         val settings = AppGraph.settings.settings.first()
+        Log.d(TAG, "onUnlock: enabled=${settings.enabled} interval=${settings.minIntervalMinutes} lastShown=${settings.lastShownAt}")
         if (!settings.enabled) return
 
         val now = System.currentTimeMillis()
         if (settings.minIntervalMinutes > 0 &&
             now - settings.lastShownAt < settings.minIntervalMinutes * 60_000L
         ) {
+            Log.d(TAG, "onUnlock: skipped by frequency gate")
             return
         }
-        if (isCallActive()) return
+        if (isCallActive()) {
+            Log.d(TAG, "onUnlock: skipped (call active)")
+            return
+        }
 
-        val chosen = withContext(Dispatchers.IO) { selectVerse(settings) } ?: return
+        val chosen = withContext(Dispatchers.IO) { selectVerse(settings) }
+        if (chosen == null) {
+            Log.d(TAG, "onUnlock: no active verse to show")
+            return
+        }
 
+        Log.d(TAG, "onUnlock: showing ${chosen.verse.reference}")
         overlay.show(chosen.verse, settings.mode, settings.durationSeconds, settings.fontScale)
 
         scope.launch(Dispatchers.IO) {
@@ -153,6 +167,7 @@ class UnlockService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     companion object {
+        private const val TAG = "SelahSvc"
         const val CHANNEL_ID = "selah_unlock"
         private const val NOTIFICATION_ID = 1
         private const val ACTION_STOP = "com.fanstaf.selah.STOP"

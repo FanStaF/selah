@@ -11,6 +11,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.lifecycle.lifecycleScope
+import com.fanstaf.selah.service.UnlockService
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.List
@@ -51,6 +55,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         refreshOverlayGranted()
         maybeRequestNotifications()
+        // Self-heal: if the feature is on but the service isn't running (after an app update or a
+        // background kill), restart it when the app is opened.
+        lifecycleScope.launch {
+            if (AppGraph.settings.settings.first().enabled && Settings.canDrawOverlays(this@MainActivity)) {
+                UnlockService.start(this@MainActivity)
+            }
+        }
 
         setContent {
             SelahTheme {
