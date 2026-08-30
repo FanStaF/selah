@@ -35,6 +35,27 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val message = MutableStateFlow<String?>(null)
     fun clearMessage() { message.value = null }
 
+    /** The translation currently being edited (import just finished, or long-pressed). */
+    val editingTranslation = MutableStateFlow<CorpusTranslation?>(null)
+    fun openTranslationEditor(t: CorpusTranslation) { editingTranslation.value = t }
+    fun closeTranslationEditor() { editingTranslation.value = null }
+
+    fun saveTranslation(old: CorpusTranslation, code: String, name: String) = viewModelScope.launch {
+        val ok = corpus.updateTranslation(old, code, name)
+        if (ok) {
+            message.value = "Saved ${code.trim()}"
+            editingTranslation.value = null
+        } else {
+            message.value = "That code is already in use"
+        }
+    }
+
+    fun deleteTranslation(t: CorpusTranslation) = viewModelScope.launch {
+        corpus.deleteTranslation(t)
+        message.value = "Removed ${t.code}"
+        editingTranslation.value = null
+    }
+
     val settings: StateFlow<Settings> = store.settings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Settings())
 
@@ -109,7 +130,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }.getOrNull()
         }
-        message.value = if (result != null) "Imported ${result.name} (${result.verseCount} verses)"
-        else "Import failed — is it a Bible XML file?"
+        if (result != null) {
+            message.value = "Imported ${result.name} (${result.verseCount} verses)"
+            // Open the editor so the name/code can be adjusted right after import.
+            editingTranslation.value = result
+        } else {
+            message.value = "Import failed — is it a Bible XML file?"
+        }
     }
 }

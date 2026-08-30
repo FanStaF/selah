@@ -22,6 +22,9 @@ interface VerseDao {
     @Query("UPDATE verses SET setId = :to WHERE setId = :from")
     suspend fun reassignSet(from: Long, to: Long)
 
+    @Query("UPDATE verses SET translation = :newCode WHERE translation = :oldCode")
+    suspend fun recodeStudy(oldCode: String, newCode: String)
+
     @Query("SELECT COUNT(*) FROM verses")
     suspend fun count(): Int
 

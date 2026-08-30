@@ -7,6 +7,7 @@ import android.os.Build
 import com.fanstaf.selah.service.UnlockService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class SelahApp : Application() {
@@ -15,9 +16,14 @@ class SelahApp : Application() {
         AppGraph.init(this)
         createNotificationChannel()
         // Seed bundled starter verses + the KJV corpus off the main thread on first launch.
+        // The corpus is seeded once (tracked by a flag) so a later rename/delete doesn't re-add it.
         CoroutineScope(Dispatchers.IO).launch {
             AppGraph.repository.ensureSeeded()
-            AppGraph.corpus.ensureKjvSeeded()
+            val settings = AppGraph.settings.settings.first()
+            if (!settings.kjvSeeded) {
+                if (!AppGraph.corpus.hasTranslation("KJV")) AppGraph.corpus.importBundledKjv()
+                AppGraph.settings.setKjvSeeded(true)
+            }
         }
     }
 

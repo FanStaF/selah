@@ -37,6 +37,8 @@ data class Settings(
     val displayStyle: DisplayStyle = DisplayStyle.FULLSCREEN,
     /** Which set feeds the rotation; VerseSet.ALL (-1) = all sets. */
     val scopeSetId: Long = -1L,
+    /** Whether the bundled KJV has been imported once (so a later rename/delete doesn't re-add it). */
+    val kjvSeeded: Boolean = false,
 )
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "selah_settings")
@@ -55,6 +57,7 @@ class SettingsStore(private val context: Context) {
         val FONT_SCALE = floatPreferencesKey("font_scale")
         val DISPLAY_STYLE = stringPreferencesKey("display_style")
         val SCOPE_SET_ID = longPreferencesKey("scope_set_id")
+        val KJV_SEEDED = booleanPreferencesKey("kjv_seeded")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { p ->
@@ -70,6 +73,7 @@ class SettingsStore(private val context: Context) {
             fontScale = p[Keys.FONT_SCALE] ?: 1.0f,
             displayStyle = (p[Keys.DISPLAY_STYLE]?.let { runCatching { DisplayStyle.valueOf(it) }.getOrNull() }) ?: DisplayStyle.FULLSCREEN,
             scopeSetId = p[Keys.SCOPE_SET_ID] ?: -1L,
+            kjvSeeded = p[Keys.KJV_SEEDED] ?: false,
         )
     }
 
@@ -82,6 +86,7 @@ class SettingsStore(private val context: Context) {
     suspend fun setFontScale(v: Float) = context.dataStore.edit { it[Keys.FONT_SCALE] = v }
     suspend fun setDisplayStyle(v: DisplayStyle) = context.dataStore.edit { it[Keys.DISPLAY_STYLE] = v.name }
     suspend fun setScopeSetId(v: Long) = context.dataStore.edit { it[Keys.SCOPE_SET_ID] = v }
+    suspend fun setKjvSeeded(v: Boolean) = context.dataStore.edit { it[Keys.KJV_SEEDED] = v }
 
     suspend fun setCursor(v: Int) = context.dataStore.edit { it[Keys.CURSOR] = v }
     suspend fun setLastShownAt(v: Long) = context.dataStore.edit { it[Keys.LAST_SHOWN] = v }

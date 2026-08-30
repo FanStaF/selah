@@ -26,6 +26,15 @@ interface CorpusDao {
     @Query("DELETE FROM corpus_translation WHERE code = :code")
     suspend fun deleteTranslation(code: String)
 
+    @Query("UPDATE corpus_translation SET name = :name WHERE code = :code")
+    suspend fun setName(code: String, name: String)
+
+    @Query("UPDATE corpus_translation SET code = :newCode, name = :name WHERE code = :oldCode")
+    suspend fun setCodeAndName(oldCode: String, newCode: String, name: String)
+
+    @Query("UPDATE corpus_verse SET translationCode = :newCode WHERE translationCode = :oldCode")
+    suspend fun recodeVerses(oldCode: String, newCode: String)
+
     @Query("SELECT DISTINCT bookNumber FROM corpus_verse WHERE translationCode = :code ORDER BY bookNumber")
     suspend fun books(code: String): List<Int>
 

@@ -1,7 +1,9 @@
 package com.fanstaf.selah.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,6 +33,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -63,6 +66,7 @@ fun BrowseScreen(
 ) {
     val sets by vm.sets.collectAsState()
     val selectedSetId by vm.selectedSetId.collectAsState()
+    val editingTranslation by vm.editingTranslation.collectAsState()
     var pendingAdd by remember { mutableStateOf<CorpusVerse?>(null) }
 
     var code by remember { mutableStateOf<String?>(null) }
@@ -107,7 +111,12 @@ fun BrowseScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             translations.forEach { t ->
-                FilterChip(selected = t.code == code, onClick = { code = t.code }, label = { Text(t.code) })
+                TranslationChip(
+                    code = t.code,
+                    selected = t.code == code,
+                    onClick = { code = t.code },
+                    onLongClick = { vm.openTranslationEditor(t) },
+                )
             }
         }
 
@@ -197,6 +206,76 @@ fun BrowseScreen(
             onCreateAndPick = { name -> vm.createSet(name) { id -> vm.addToStudy(cv, id) }; pendingAdd = null },
         )
     }
+
+    editingTranslation?.let { t ->
+        TranslationDialog(
+            translation = t,
+            onDismiss = { vm.closeTranslationEditor() },
+            onSave = { c, n -> vm.saveTranslation(t, c, n) },
+            onDelete = { vm.deleteTranslation(t) },
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun TranslationChip(
+    code: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick),
+    ) {
+        Text(
+            code,
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+    }
+}
+
+@Composable
+private fun TranslationDialog(
+    translation: CorpusTranslation,
+    onDismiss: () -> Unit,
+    onSave: (String, String) -> Unit,
+    onDelete: () -> Unit,
+) {
+    var codeText by remember(translation) { mutableStateOf(translation.code) }
+    var nameText by remember(translation) { mutableStateOf(translation.name) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Translation") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "${translation.verseCount} verses",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = codeText, onValueChange = { codeText = it },
+                    label = { Text("Short code (shown on chips)") }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = nameText, onValueChange = { nameText = it },
+                    label = { Text("Full name") }, modifier = Modifier.fillMaxWidth(),
+                )
+                TextButton(onClick = onDelete) { Text("Remove this translation") }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(codeText, nameText) }, enabled = codeText.isNotBlank()) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 @Composable

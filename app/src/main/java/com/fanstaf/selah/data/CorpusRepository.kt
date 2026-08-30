@@ -11,11 +11,11 @@ class CorpusRepository(
 ) {
     fun observeTranslations(): Flow<List<CorpusTranslation>> = corpusDao.observeTranslations()
 
-    /** On first launch, load the bundled KJV into the corpus. */
-    suspend fun ensureKjvSeeded() {
-        if (corpusDao.translation("KJV") == null) {
-            appContext.assets.open("kjv.xml").use { importStream(it, forcedCode = "KJV") }
-        }
+    suspend fun hasTranslation(code: String): Boolean = corpusDao.translation(code) != null
+
+    /** Load the bundled KJV into the corpus. */
+    suspend fun importBundledKjv() {
+        appContext.assets.open("kjv.xml").use { importStream(it, forcedCode = "KJV") }
     }
 
     /**
@@ -39,6 +39,30 @@ class CorpusRepository(
         val translation = CorpusTranslation(code = code, name = name, verseCount = coded.size)
         corpusDao.replaceTranslation(translation, coded)
         return translation
+    }
+
+    /**
+     * Rename a translation's short code and/or full name. Changing the code cascades to corpus
+     * verses and the user's saved snapshots. Returns false if the new code collides.
+     */
+    suspend fun updateTranslation(old: CorpusTranslation, newCode: String, newName: String): Boolean {
+        val code = newCode.trim()
+        val name = newName.trim().ifEmpty { code }
+        if (code.isEmpty()) return false
+        if (code != old.code && corpusDao.translation(code) != null) return false
+        if (code == old.code) {
+            corpusDao.setName(old.code, name)
+        } else {
+            corpusDao.setCodeAndName(old.code, code, name)
+            corpusDao.recodeVerses(old.code, code)
+            verseDao.recodeStudy(old.code, code)
+        }
+        return true
+    }
+
+    suspend fun deleteTranslation(t: CorpusTranslation) {
+        corpusDao.deleteVerses(t.code)
+        corpusDao.deleteTranslation(t.code)
     }
 
     suspend fun books(code: String): List<Int> = corpusDao.books(code)
