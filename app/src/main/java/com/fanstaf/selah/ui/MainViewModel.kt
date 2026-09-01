@@ -107,6 +107,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setSortOrder(order: SortOrder) = viewModelScope.launch { store.setSortOrder(order) }
     fun setVersesCompact(compact: Boolean) = viewModelScope.launch { store.setVersesCompact(compact) }
 
+    /** Switch to manual sort, seeding the arrangement from the currently shown order. */
+    fun enableManual(orderedIds: List<Long>) = viewModelScope.launch {
+        repo.setManualOrder(orderedIds)
+        store.setSortOrder(SortOrder.MANUAL)
+    }
+    fun setManualOrder(orderedIds: List<Long>) = viewModelScope.launch { repo.setManualOrder(orderedIds) }
+
     // --- Sets ---
 
     fun createSet(name: String, onCreated: (Long) -> Unit = {}) = viewModelScope.launch {

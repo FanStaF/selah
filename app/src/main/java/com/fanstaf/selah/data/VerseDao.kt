@@ -54,4 +54,7 @@ interface VerseDao {
 
     @Query("UPDATE verses SET active = :active WHERE id = :id")
     suspend fun setActive(id: Long, active: Boolean)
+
+    @Query("UPDATE verses SET orderIndex = :orderIndex WHERE id = :id")
+    suspend fun setOrderIndex(id: Long, orderIndex: Int)
 }

@@ -57,6 +57,11 @@ class VerseRepository(
         }
     }
 
+    /** Persist a manual arrangement: assign orderIndex by position in [orderedIds]. */
+    suspend fun setManualOrder(orderedIds: List<Long>) {
+        orderedIds.forEachIndexed { index, id -> dao.setOrderIndex(id, index) }
+    }
+
     suspend fun update(verse: Verse) = dao.update(verse)
     suspend fun delete(verse: Verse) = dao.delete(verse)
     suspend fun setActive(id: Long, active: Boolean) = dao.setActive(id, active)

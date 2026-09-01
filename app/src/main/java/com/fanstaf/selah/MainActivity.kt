@@ -221,6 +221,8 @@ private fun MainScaffold(
                 onRenameSet = vm::renameSet,
                 onDeleteSet = vm::deleteSet,
                 onSortOrder = vm::setSortOrder,
+                onEnableManual = vm::enableManual,
+                onReorder = vm::setManualOrder,
                 onToggleCompact = { vm.setVersesCompact(!settings.versesCompact) },
                 onAdd = vm::addVerse,
                 onUpdate = vm::updateVerse,

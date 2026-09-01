@@ -3,6 +3,7 @@ package com.fanstaf.selah.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,17 +11,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -46,6 +50,8 @@ import com.fanstaf.selah.data.SortOrder
 import com.fanstaf.selah.data.Verse
 import com.fanstaf.selah.data.VerseSet
 import com.fanstaf.selah.data.sortVerses
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @Composable
 fun VersesScreen(
@@ -62,6 +68,8 @@ fun VersesScreen(
     onRenameSet: (VerseSet, String) -> Unit,
     onDeleteSet: (VerseSet) -> Unit,
     onSortOrder: (SortOrder) -> Unit,
+    onEnableManual: (List<Long>) -> Unit,
+    onReorder: (List<Long>) -> Unit,
     onToggleCompact: () -> Unit,
     onAdd: (String, String, String, Long) -> Unit,
     onUpdate: (Verse) -> Unit,
@@ -91,48 +99,42 @@ fun VersesScreen(
                 onRename = { currentSet?.let { renamingSet = it } },
                 onDelete = { currentSet?.let { confirmDeleteSet = it } },
                 onSortOrder = onSortOrder,
+                onManual = { onEnableManual(shown.map { it.id }) },
                 onToggleCompact = onToggleCompact,
             )
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                    start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp,
-                ),
-                verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 10.dp),
-            ) {
-                if (shown.isEmpty()) {
-                    item {
-                        Text(
-                            "No verses here yet. Use Browse to pick verses, or ＋ to type one.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 24.dp),
-                        )
-                    }
-                }
-                items(shown, key = { it.id }) { verse ->
-                    val isSingle = selectionIsSingle && verse.id == singleVerseId
-                    if (compact) {
-                        CompactVerseRow(
-                            verse = verse,
-                            isSingle = isSingle,
-                            showStar = selectionIsSingle,
-                            onToggleActive = { onSetActive(verse.id, it) },
-                            onEdit = { editing = verse },
-                            onDelete = { onDelete(verse) },
-                            onSetSingle = { onSetSingle(verse.id) },
-                        )
-                    } else {
-                        VerseRow(
-                            verse = verse,
-                            isSingle = isSingle,
-                            showStar = selectionIsSingle,
-                            onToggleActive = { onSetActive(verse.id, it) },
-                            onEdit = { editing = verse },
-                            onDelete = { onDelete(verse) },
-                            onSetSingle = { onSetSingle(verse.id) },
-                        )
+            if (shown.isEmpty()) {
+                Text(
+                    "No verses here yet. Use Browse to pick verses, or ＋ to type one.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(16.dp),
+                )
+            } else if (sortOrder == SortOrder.MANUAL) {
+                ManualVerseList(
+                    shown = shown,
+                    compact = compact,
+                    singleVerseId = singleVerseId,
+                    selectionIsSingle = selectionIsSingle,
+                    onReorder = onReorder,
+                    onToggleActive = onSetActive,
+                    onEdit = { editing = it },
+                    onDelete = onDelete,
+                    onSetSingle = onSetSingle,
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 10.dp),
+                ) {
+                    items(shown, key = { it.id }) { verse ->
+                        val isSingle = selectionIsSingle && verse.id == singleVerseId
+                        if (compact) {
+                            CompactVerseRow(verse, isSingle, selectionIsSingle, { onSetActive(verse.id, it) }, { editing = verse }, { onDelete(verse) }, { onSetSingle(verse.id) })
+                        } else {
+                            VerseRow(verse, isSingle, selectionIsSingle, { onSetActive(verse.id, it) }, { editing = verse }, { onDelete(verse) }, { onSetSingle(verse.id) })
+                        }
                     }
                 }
             }
@@ -147,21 +149,12 @@ fun VersesScreen(
     }
 
     if (adding) {
-        VerseDialog(
-            initial = null,
-            onDismiss = { adding = false },
-            onSave = { ref, text, tr -> onAdd(ref, text, tr, selectedSetId); adding = false },
-        )
+        VerseDialog(null, { adding = false }, { ref, text, tr -> onAdd(ref, text, tr, selectedSetId); adding = false })
     }
     editing?.let { verse ->
-        VerseDialog(
-            initial = verse,
-            onDismiss = { editing = null },
-            onSave = { ref, text, tr ->
-                onUpdate(verse.copy(reference = ref, text = text, translation = tr))
-                editing = null
-            },
-        )
+        VerseDialog(verse, { editing = null }, { ref, text, tr ->
+            onUpdate(verse.copy(reference = ref, text = text, translation = tr)); editing = null
+        })
     }
     if (creatingSet) {
         SetNameDialog("New set", "", { creatingSet = false }, { name -> onCreateSet(name); creatingSet = false })
@@ -181,6 +174,87 @@ fun VersesScreen(
 }
 
 @Composable
+private fun ManualVerseList(
+    shown: List<Verse>,
+    compact: Boolean,
+    singleVerseId: Long,
+    selectionIsSingle: Boolean,
+    onReorder: (List<Long>) -> Unit,
+    onToggleActive: (Long, Boolean) -> Unit,
+    onEdit: (Verse) -> Unit,
+    onDelete: (Verse) -> Unit,
+    onSetSingle: (Long) -> Unit,
+) {
+    val listState = rememberLazyListState()
+    // Local working copy; reset only when the set of verses changes (not on mere reordering).
+    var data by remember(shown.map { it.id }.toSet()) { mutableStateOf(shown) }
+    val reorderState = rememberReorderableLazyListState(listState) { from, to ->
+        data = data.toMutableList().apply { add(to.index, removeAt(from.index)) }
+        onReorder(data.map { it.id })
+    }
+
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 10.dp),
+    ) {
+        items(data, key = { it.id }) { verse ->
+            ReorderableItem(reorderState, key = verse.id) { isDragging ->
+                val isSingle = selectionIsSingle && verse.id == singleVerseId
+                Card(
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (isDragging) 8.dp else 1.dp),
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(end = 4.dp, top = 4.dp, bottom = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            Icons.Filled.DragHandle,
+                            contentDescription = "Drag to reorder",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.draggableHandle().padding(12.dp),
+                        )
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                "${verse.reference}  ·  ${verse.translation}",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.secondary,
+                                maxLines = 1,
+                            )
+                            if (!compact) {
+                                Text(
+                                    verse.text,
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Serif),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 2,
+                                )
+                            }
+                        }
+                        if (selectionIsSingle) {
+                            IconButton(onClick = { onSetSingle(verse.id) }, modifier = Modifier.size(40.dp)) {
+                                Icon(
+                                    if (isSingle) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                                    contentDescription = "Use as single verse",
+                                    tint = MaterialTheme.colorScheme.secondary,
+                                )
+                            }
+                        }
+                        Switch(checked = verse.active, onCheckedChange = { onToggleActive(verse.id, it) })
+                        IconButton(onClick = { onEdit(verse) }, modifier = Modifier.size(40.dp)) {
+                            Icon(Icons.Filled.Edit, contentDescription = "Edit")
+                        }
+                        IconButton(onClick = { onDelete(verse) }, modifier = Modifier.size(40.dp)) {
+                            Icon(Icons.Filled.Delete, contentDescription = "Delete")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun SetSelectorRow(
     sets: List<VerseSet>,
     currentSet: VerseSet?,
@@ -191,6 +265,7 @@ private fun SetSelectorRow(
     onRename: () -> Unit,
     onDelete: () -> Unit,
     onSortOrder: (SortOrder) -> Unit,
+    onManual: () -> Unit,
     onToggleCompact: () -> Unit,
 ) {
     var setMenu by remember { mutableStateOf(false) }
@@ -229,6 +304,11 @@ private fun SetSelectorRow(
                     text = { Text("Recently added") },
                     leadingIcon = { if (sortOrder == SortOrder.RECENT) Icon(Icons.Filled.Check, null) },
                     onClick = { onSortOrder(SortOrder.RECENT); overflow = false },
+                )
+                DropdownMenuItem(
+                    text = { Text("Manual order") },
+                    leadingIcon = { if (sortOrder == SortOrder.MANUAL) Icon(Icons.Filled.Check, null) },
+                    onClick = { onManual(); overflow = false },
                 )
                 Divider()
                 DropdownMenuItem(

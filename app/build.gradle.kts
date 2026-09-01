@@ -40,6 +40,9 @@ dependencies {
     // DataStore for settings.
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
+    // Drag-to-reorder for the manual verse sort.
+    implementation("sh.calvin.reorderable:reorderable:2.4.3")
+
     // Room for user verses + memory state (bundled starter verses ship as an asset).
     implementation("androidx.room:room-runtime:2.8.4")
     implementation("androidx.room:room-ktx:2.8.4")
