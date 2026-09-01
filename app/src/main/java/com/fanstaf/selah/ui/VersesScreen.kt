@@ -7,13 +7,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.AlertDialog
@@ -39,8 +42,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import com.fanstaf.selah.data.SortOrder
 import com.fanstaf.selah.data.Verse
 import com.fanstaf.selah.data.VerseSet
+import com.fanstaf.selah.data.sortVerses
 
 @Composable
 fun VersesScreen(
@@ -50,10 +55,14 @@ fun VersesScreen(
     selectedSetId: Long,
     singleVerseId: Long,
     selectionIsSingle: Boolean,
+    sortOrder: SortOrder,
+    compact: Boolean,
     onSelectSet: (Long) -> Unit,
     onCreateSet: (String) -> Unit,
     onRenameSet: (VerseSet, String) -> Unit,
     onDeleteSet: (VerseSet) -> Unit,
+    onSortOrder: (SortOrder) -> Unit,
+    onToggleCompact: () -> Unit,
     onAdd: (String, String, String, Long) -> Unit,
     onUpdate: (Verse) -> Unit,
     onDelete: (Verse) -> Unit,
@@ -67,19 +76,22 @@ fun VersesScreen(
     var confirmDeleteSet by remember { mutableStateOf<VerseSet?>(null) }
 
     val currentSet = sets.firstOrNull { it.id == selectedSetId }
-    val shown = if (selectedSetId == VerseSet.ALL) verses else verses.filter { it.setId == selectedSetId }
+    val filtered = if (selectedSetId == VerseSet.ALL) verses else verses.filter { it.setId == selectedSetId }
+    val shown = sortVerses(filtered, sortOrder)
 
     Box(modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            // Set selector row
             SetSelectorRow(
                 sets = sets,
-                selectedSetId = selectedSetId,
                 currentSet = currentSet,
+                sortOrder = sortOrder,
+                compact = compact,
                 onSelectSet = onSelectSet,
                 onNewSet = { creatingSet = true },
                 onRename = { currentSet?.let { renamingSet = it } },
                 onDelete = { currentSet?.let { confirmDeleteSet = it } },
+                onSortOrder = onSortOrder,
+                onToggleCompact = onToggleCompact,
             )
 
             LazyColumn(
@@ -87,7 +99,7 @@ fun VersesScreen(
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(
                     start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp,
                 ),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 10.dp),
             ) {
                 if (shown.isEmpty()) {
                     item {
@@ -100,15 +112,28 @@ fun VersesScreen(
                     }
                 }
                 items(shown, key = { it.id }) { verse ->
-                    VerseRow(
-                        verse = verse,
-                        isSingle = selectionIsSingle && verse.id == singleVerseId,
-                        showStar = selectionIsSingle,
-                        onToggleActive = { onSetActive(verse.id, it) },
-                        onEdit = { editing = verse },
-                        onDelete = { onDelete(verse) },
-                        onSetSingle = { onSetSingle(verse.id) },
-                    )
+                    val isSingle = selectionIsSingle && verse.id == singleVerseId
+                    if (compact) {
+                        CompactVerseRow(
+                            verse = verse,
+                            isSingle = isSingle,
+                            showStar = selectionIsSingle,
+                            onToggleActive = { onSetActive(verse.id, it) },
+                            onEdit = { editing = verse },
+                            onDelete = { onDelete(verse) },
+                            onSetSingle = { onSetSingle(verse.id) },
+                        )
+                    } else {
+                        VerseRow(
+                            verse = verse,
+                            isSingle = isSingle,
+                            showStar = selectionIsSingle,
+                            onToggleActive = { onSetActive(verse.id, it) },
+                            onEdit = { editing = verse },
+                            onDelete = { onDelete(verse) },
+                            onSetSingle = { onSetSingle(verse.id) },
+                        )
+                    }
                 }
             }
         }
@@ -139,29 +164,17 @@ fun VersesScreen(
         )
     }
     if (creatingSet) {
-        SetNameDialog(
-            title = "New set",
-            initial = "",
-            onDismiss = { creatingSet = false },
-            onSave = { name -> onCreateSet(name); creatingSet = false },
-        )
+        SetNameDialog("New set", "", { creatingSet = false }, { name -> onCreateSet(name); creatingSet = false })
     }
     renamingSet?.let { s ->
-        SetNameDialog(
-            title = "Rename set",
-            initial = s.name,
-            onDismiss = { renamingSet = null },
-            onSave = { name -> onRenameSet(s, name); renamingSet = null },
-        )
+        SetNameDialog("Rename set", s.name, { renamingSet = null }, { name -> onRenameSet(s, name); renamingSet = null })
     }
     confirmDeleteSet?.let { s ->
         AlertDialog(
             onDismissRequest = { confirmDeleteSet = null },
             title = { Text("Delete \"${s.name}\"?") },
             text = { Text("Verses in this set will move to another set. This can't be undone.") },
-            confirmButton = {
-                TextButton(onClick = { onDeleteSet(s); confirmDeleteSet = null }) { Text("Delete") }
-            },
+            confirmButton = { TextButton(onClick = { onDeleteSet(s); confirmDeleteSet = null }) { Text("Delete") } },
             dismissButton = { TextButton(onClick = { confirmDeleteSet = null }) { Text("Cancel") } },
         )
     }
@@ -170,14 +183,18 @@ fun VersesScreen(
 @Composable
 private fun SetSelectorRow(
     sets: List<VerseSet>,
-    selectedSetId: Long,
     currentSet: VerseSet?,
+    sortOrder: SortOrder,
+    compact: Boolean,
     onSelectSet: (Long) -> Unit,
     onNewSet: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
+    onSortOrder: (SortOrder) -> Unit,
+    onToggleCompact: () -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var setMenu by remember { mutableStateOf(false) }
+    var overflow by remember { mutableStateOf(false) }
     val label = currentSet?.name ?: "All verses"
 
     Row(
@@ -185,32 +202,89 @@ private fun SetSelectorRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.weight(1f)) {
-            OutlinedButton(onClick = { expanded = true }) {
+            OutlinedButton(onClick = { setMenu = true }) {
                 Text(label, maxLines = 1)
                 Icon(Icons.Filled.ArrowDropDown, contentDescription = "Choose set")
             }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                DropdownMenuItem(
-                    text = { Text("All verses") },
-                    onClick = { onSelectSet(VerseSet.ALL); expanded = false },
-                )
+            DropdownMenu(expanded = setMenu, onDismissRequest = { setMenu = false }) {
+                DropdownMenuItem(text = { Text("All verses") }, onClick = { onSelectSet(VerseSet.ALL); setMenu = false })
                 sets.forEach { s ->
-                    DropdownMenuItem(
-                        text = { Text(s.name) },
-                        onClick = { onSelectSet(s.id); expanded = false },
-                    )
+                    DropdownMenuItem(text = { Text(s.name) }, onClick = { onSelectSet(s.id); setMenu = false })
                 }
                 Divider()
-                DropdownMenuItem(
-                    text = { Text("＋ New set…") },
-                    onClick = { onNewSet(); expanded = false },
-                )
+                DropdownMenuItem(text = { Text("＋ New set…") }, onClick = { onNewSet(); setMenu = false })
             }
         }
-        if (currentSet != null) {
-            IconButton(onClick = onRename) { Icon(Icons.Filled.Edit, contentDescription = "Rename set") }
-            if (sets.size > 1) {
-                IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, contentDescription = "Delete set") }
+        Box {
+            IconButton(onClick = { overflow = true }) {
+                Icon(Icons.Filled.MoreVert, contentDescription = "Sort and view options")
+            }
+            DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }) {
+                DropdownMenuItem(
+                    text = { Text("Biblical order") },
+                    leadingIcon = { if (sortOrder == SortOrder.BIBLICAL) Icon(Icons.Filled.Check, null) },
+                    onClick = { onSortOrder(SortOrder.BIBLICAL); overflow = false },
+                )
+                DropdownMenuItem(
+                    text = { Text("Recently added") },
+                    leadingIcon = { if (sortOrder == SortOrder.RECENT) Icon(Icons.Filled.Check, null) },
+                    onClick = { onSortOrder(SortOrder.RECENT); overflow = false },
+                )
+                Divider()
+                DropdownMenuItem(
+                    text = { Text("Compact view") },
+                    leadingIcon = { if (compact) Icon(Icons.Filled.Check, null) },
+                    onClick = { onToggleCompact(); overflow = false },
+                )
+                if (currentSet != null) {
+                    Divider()
+                    DropdownMenuItem(text = { Text("Rename set") }, onClick = { onRename(); overflow = false })
+                    if (sets.size > 1) {
+                        DropdownMenuItem(text = { Text("Delete set") }, onClick = { onDelete(); overflow = false })
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactVerseRow(
+    verse: Verse,
+    isSingle: Boolean,
+    showStar: Boolean,
+    onToggleActive: (Boolean) -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onSetSingle: () -> Unit,
+) {
+    Card {
+        Row(
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "${verse.reference}  ·  ${verse.translation}",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+            )
+            if (showStar) {
+                IconButton(onClick = onSetSingle, modifier = Modifier.size(40.dp)) {
+                    Icon(
+                        if (isSingle) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                        contentDescription = "Use as single verse",
+                        tint = MaterialTheme.colorScheme.secondary,
+                    )
+                }
+            }
+            Switch(checked = verse.active, onCheckedChange = onToggleActive)
+            IconButton(onClick = onEdit, modifier = Modifier.size(40.dp)) {
+                Icon(Icons.Filled.Edit, contentDescription = "Edit")
+            }
+            IconButton(onClick = onDelete, modifier = Modifier.size(40.dp)) {
+                Icon(Icons.Filled.Delete, contentDescription = "Delete")
             }
         }
     }
@@ -258,11 +332,7 @@ private fun VerseRow(
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Switch(
-                    checked = verse.active,
-                    onCheckedChange = onToggleActive,
-                    modifier = Modifier.padding(start = 8.dp),
-                )
+                Switch(checked = verse.active, onCheckedChange = onToggleActive, modifier = Modifier.padding(start = 8.dp))
                 Box(Modifier.weight(1f))
                 IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, contentDescription = "Edit") }
                 IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, contentDescription = "Delete") }

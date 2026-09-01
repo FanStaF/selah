@@ -11,14 +11,19 @@ object BundledVerses {
         return buildList {
             for (i in 0 until arr.length()) {
                 val o = arr.getJSONObject(i)
+                val reference = o.getString("reference")
+                val coords = BookNames.parse(reference)
                 add(
                     Verse(
-                        reference = o.getString("reference"),
+                        reference = reference,
                         text = o.getString("text"),
                         translation = o.optString("translation", "KJV"),
                         source = Verse.SOURCE_BUNDLED,
                         active = true,
                         orderIndex = i,
+                        bookNumber = coords?.first,
+                        chapter = coords?.second,
+                        verse = coords?.third,
                     ),
                 )
             }

@@ -41,6 +41,10 @@ data class Settings(
     val kjvSeeded: Boolean = false,
     /** Last translation used in the Browse tab, remembered across visits. */
     val browseTranslationCode: String = "",
+    /** How the Verses list is ordered (also drives sequential rotation). */
+    val sortOrder: SortOrder = SortOrder.BIBLICAL,
+    /** Compact (reference-only) rows on the Verses screen. */
+    val versesCompact: Boolean = false,
 )
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "selah_settings")
@@ -61,6 +65,8 @@ class SettingsStore(private val context: Context) {
         val SCOPE_SET_ID = longPreferencesKey("scope_set_id")
         val KJV_SEEDED = booleanPreferencesKey("kjv_seeded")
         val BROWSE_TRANSLATION = stringPreferencesKey("browse_translation")
+        val SORT_ORDER = stringPreferencesKey("sort_order")
+        val VERSES_COMPACT = booleanPreferencesKey("verses_compact")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { p ->
@@ -78,6 +84,8 @@ class SettingsStore(private val context: Context) {
             scopeSetId = p[Keys.SCOPE_SET_ID] ?: -1L,
             kjvSeeded = p[Keys.KJV_SEEDED] ?: false,
             browseTranslationCode = p[Keys.BROWSE_TRANSLATION] ?: "",
+            sortOrder = (p[Keys.SORT_ORDER]?.let { runCatching { SortOrder.valueOf(it) }.getOrNull() }) ?: SortOrder.BIBLICAL,
+            versesCompact = p[Keys.VERSES_COMPACT] ?: false,
         )
     }
 
@@ -92,6 +100,8 @@ class SettingsStore(private val context: Context) {
     suspend fun setScopeSetId(v: Long) = context.dataStore.edit { it[Keys.SCOPE_SET_ID] = v }
     suspend fun setKjvSeeded(v: Boolean) = context.dataStore.edit { it[Keys.KJV_SEEDED] = v }
     suspend fun setBrowseTranslation(v: String) = context.dataStore.edit { it[Keys.BROWSE_TRANSLATION] = v }
+    suspend fun setSortOrder(v: SortOrder) = context.dataStore.edit { it[Keys.SORT_ORDER] = v.name }
+    suspend fun setVersesCompact(v: Boolean) = context.dataStore.edit { it[Keys.VERSES_COMPACT] = v }
 
     suspend fun setCursor(v: Int) = context.dataStore.edit { it[Keys.CURSOR] = v }
     suspend fun setLastShownAt(v: Long) = context.dataStore.edit { it[Keys.LAST_SHOWN] = v }

@@ -25,6 +25,9 @@ interface VerseDao {
     @Query("UPDATE verses SET translation = :newCode WHERE translation = :oldCode")
     suspend fun recodeStudy(oldCode: String, newCode: String)
 
+    @Query("SELECT * FROM verses WHERE bookNumber IS NULL")
+    suspend fun versesWithoutCoords(): List<Verse>
+
     @Query("SELECT COUNT(*) FROM verses")
     suspend fun count(): Int
 

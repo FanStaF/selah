@@ -10,7 +10,9 @@ import com.fanstaf.selah.data.CorpusVerse
 import com.fanstaf.selah.data.DisplayMode
 import com.fanstaf.selah.data.DisplayStyle
 import com.fanstaf.selah.data.SelectionStrategy
+import com.fanstaf.selah.data.BookNames
 import com.fanstaf.selah.data.Settings
+import com.fanstaf.selah.data.SortOrder
 import com.fanstaf.selah.data.Verse
 import com.fanstaf.selah.data.VerseSet
 import com.fanstaf.selah.service.UnlockService
@@ -94,9 +96,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             repo.addUserVerse(reference, text, translation, target)
         }
 
-    fun updateVerse(verse: Verse) = viewModelScope.launch { repo.update(verse) }
+    fun updateVerse(verse: Verse) = viewModelScope.launch {
+        // Re-derive coordinates from the (possibly edited) reference so Biblical sort stays correct.
+        val coords = BookNames.parse(verse.reference)
+        repo.update(verse.copy(bookNumber = coords?.first, chapter = coords?.second, verse = coords?.third))
+    }
     fun deleteVerse(verse: Verse) = viewModelScope.launch { repo.delete(verse) }
     fun setActive(id: Long, active: Boolean) = viewModelScope.launch { repo.setActive(id, active) }
+
+    fun setSortOrder(order: SortOrder) = viewModelScope.launch { store.setSortOrder(order) }
+    fun setVersesCompact(compact: Boolean) = viewModelScope.launch { store.setVersesCompact(compact) }
 
     // --- Sets ---
 

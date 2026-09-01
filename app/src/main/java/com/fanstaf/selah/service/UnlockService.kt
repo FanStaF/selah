@@ -118,7 +118,11 @@ class UnlockService : Service() {
     private data class Pick(val verse: Verse, val nextCursor: Int)
 
     private suspend fun selectVerse(settings: Settings): Pick? {
-        val active = AppGraph.repository.activeVersesScoped(settings.scopeSetId)
+        // Sequential rotation follows the same order as the Verses list (default Biblical).
+        val active = com.fanstaf.selah.data.sortVerses(
+            AppGraph.repository.activeVersesScoped(settings.scopeSetId),
+            settings.sortOrder,
+        )
         if (active.isEmpty()) return null
         return when (settings.selection) {
             SelectionStrategy.SINGLE -> {

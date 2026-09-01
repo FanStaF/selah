@@ -29,18 +29,33 @@ class VerseRepository(
 
     suspend fun byId(id: Long): Verse? = dao.byId(id)
 
-    suspend fun addUserVerse(reference: String, text: String, translation: String, setId: Long): Long =
-        dao.insert(
+    suspend fun addUserVerse(reference: String, text: String, translation: String, setId: Long): Long {
+        val ref = reference.trim()
+        val coords = BookNames.parse(ref)
+        return dao.insert(
             Verse(
-                reference = reference.trim(),
+                reference = ref,
                 text = text.trim(),
                 translation = translation.trim().ifEmpty { "—" },
                 source = Verse.SOURCE_USER,
                 active = true,
                 orderIndex = Int.MAX_VALUE,
                 setId = setId,
+                bookNumber = coords?.first,
+                chapter = coords?.second,
+                verse = coords?.third,
             ),
         )
+    }
+
+    /** Fill in book/chapter/verse for any verses that lack them but have a parseable reference. */
+    suspend fun backfillCoords() {
+        dao.versesWithoutCoords().forEach { v ->
+            BookNames.parse(v.reference)?.let { (b, c, vv) ->
+                dao.update(v.copy(bookNumber = b, chapter = c, verse = vv))
+            }
+        }
+    }
 
     suspend fun update(verse: Verse) = dao.update(verse)
     suspend fun delete(verse: Verse) = dao.delete(verse)

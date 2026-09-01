@@ -35,4 +35,34 @@ object BookNames {
         "${name(bookNumber)} $chapter:$verse"
 
     fun isNewTestament(bookNumber: Int): Boolean = bookNumber >= 40
+
+    private fun norm(s: String): String = s.lowercase().trim().replace(Regex("\\s+"), " ")
+
+    private val lookup: Map<String, Int> by lazy {
+        buildMap {
+            for (i in 1..66) {
+                put(norm(names[i]), i)
+                put(norm(abbrevs[i]), i)
+            }
+            // Common variants.
+            put("psalm", 19)
+            put("song of songs", 22)
+            put("canticles", 22)
+            put("phil", 50) // disambiguates toward Philippians (Philemon stays "philem")
+        }
+    }
+
+    private val refRegex = Regex("^(.*?)\\s+(\\d+):(\\d+)")
+
+    /**
+     * Parse a reference like "John 3:16", "1 Corinthians 13:4", or "Colossians 2:8-10" into
+     * (bookNumber, chapter, startVerse). Returns null if the book isn't recognized.
+     */
+    fun parse(reference: String): Triple<Int, Int, Int>? {
+        val m = refRegex.find(reference.trim()) ?: return null
+        val book = lookup[norm(m.groupValues[1])] ?: return null
+        val chapter = m.groupValues[2].toIntOrNull() ?: return null
+        val verse = m.groupValues[3].toIntOrNull() ?: return null
+        return Triple(book, chapter, verse)
+    }
 }

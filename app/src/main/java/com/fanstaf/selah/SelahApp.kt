@@ -19,6 +19,9 @@ class SelahApp : Application() {
         // The corpus is seeded once (tracked by a flag) so a later rename/delete doesn't re-add it.
         CoroutineScope(Dispatchers.IO).launch {
             AppGraph.repository.ensureSeeded()
+            // Fill in book/chapter/verse for any verses missing them (bundled starters, older
+            // typed verses) so Biblical sort covers everything.
+            AppGraph.repository.backfillCoords()
             val settings = AppGraph.settings.settings.first()
             if (!settings.kjvSeeded) {
                 if (!AppGraph.corpus.hasTranslation("KJV")) AppGraph.corpus.importBundledKjv()
