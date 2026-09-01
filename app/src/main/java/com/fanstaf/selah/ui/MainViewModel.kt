@@ -114,11 +114,22 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     suspend fun versesIn(code: String, book: Int, chapter: Int): List<CorpusVerse> =
         corpus.versesIn(code, book, chapter)
 
-    fun addToStudy(cv: CorpusVerse, setId: Long) = viewModelScope.launch {
+    fun setBrowseTranslation(code: String) = viewModelScope.launch { store.setBrowseTranslation(code) }
+
+    /** Add one or more contiguous corpus verses as a single study entry. */
+    fun addRangeToStudy(verses: List<CorpusVerse>, setId: Long) = viewModelScope.launch {
+        if (verses.isEmpty()) return@launch
         val target = if (setId >= 0) setId else repo.ensureDefaultSet()
-        val added = corpus.addToStudy(cv, target)
-        message.value = if (added) "Added ${com.fanstaf.selah.data.BookNames.reference(cv.bookNumber, cv.chapter, cv.verse)}"
-        else "Already in your verses"
+        val added = corpus.addRangeToStudy(verses, target)
+        val sorted = verses.sortedBy { it.verse }
+        val first = sorted.first()
+        val last = sorted.last()
+        val ref = if (first.verse == last.verse) {
+            com.fanstaf.selah.data.BookNames.reference(first.bookNumber, first.chapter, first.verse)
+        } else {
+            "${com.fanstaf.selah.data.BookNames.name(first.bookNumber)} ${first.chapter}:${first.verse}-${last.verse}"
+        }
+        message.value = if (added) "Added $ref" else "Already in your verses"
     }
 
     fun importFromUri(uri: Uri) = viewModelScope.launch {

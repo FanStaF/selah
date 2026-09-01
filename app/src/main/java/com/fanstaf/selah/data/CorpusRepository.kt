@@ -74,6 +74,42 @@ class CorpusRepository(
      * Copy a corpus verse into the user's study list (a stable snapshot). Skips if the same verse
      * in the same translation is already there. Returns true if added.
      */
+    /**
+     * Add one or more contiguous corpus verses as a single study entry (e.g. "Colossians 2:8-10",
+     * text joined). Skips if a verse with the same start reference already exists. Returns true if
+     * added.
+     */
+    suspend fun addRangeToStudy(verses: List<CorpusVerse>, setId: Long): Boolean {
+        if (verses.isEmpty()) return false
+        val sorted = verses.sortedBy { it.verse }
+        val first = sorted.first()
+        val last = sorted.last()
+        val code = first.translationCode
+        val book = first.bookNumber
+        val chapter = first.chapter
+        if (verseDao.countMatching(code, book, chapter, first.verse) > 0) return false
+        val reference = if (first.verse == last.verse) {
+            BookNames.reference(book, chapter, first.verse)
+        } else {
+            "${BookNames.name(book)} $chapter:${first.verse}-${last.verse}"
+        }
+        verseDao.insert(
+            Verse(
+                reference = reference,
+                text = sorted.joinToString(" ") { it.text },
+                translation = code,
+                source = Verse.SOURCE_CORPUS,
+                active = true,
+                orderIndex = Int.MAX_VALUE,
+                bookNumber = book,
+                chapter = chapter,
+                verse = first.verse,
+                setId = setId,
+            ),
+        )
+        return true
+    }
+
     suspend fun addToStudy(cv: CorpusVerse, setId: Long): Boolean {
         val exists = verseDao.countMatching(cv.translationCode, cv.bookNumber, cv.chapter, cv.verse) > 0
         if (exists) return false

@@ -23,13 +23,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -64,36 +63,62 @@ fun BrowseScreen(
     translations: List<CorpusTranslation>,
     onImport: () -> Unit,
 ) {
+    val settings by vm.settings.collectAsState()
     val sets by vm.sets.collectAsState()
     val selectedSetId by vm.selectedSetId.collectAsState()
     val editingTranslation by vm.editingTranslation.collectAsState()
-    var pendingAdd by remember { mutableStateOf<CorpusVerse?>(null) }
+    var pendingAdd by remember { mutableStateOf<List<CorpusVerse>?>(null) }
 
     var code by remember { mutableStateOf<String?>(null) }
     var book by remember { mutableStateOf<Int?>(null) }
     var chapter by remember { mutableStateOf<Int?>(null) }
-    var selectedVerse by remember { mutableStateOf<Int?>(null) }
+    // The verse the reading view opens at (null = still on the verse-number grid).
+    var openVerse by remember { mutableStateOf<Int?>(null) }
 
     var books by remember { mutableStateOf<List<Int>>(emptyList()) }
     var chapters by remember { mutableStateOf<List<Int>>(emptyList()) }
     var verses by remember { mutableStateOf<List<CorpusVerse>>(emptyList()) }
 
-    LaunchedEffect(translations) {
-        if (code == null || translations.none { it.code == code }) {
-            code = translations.firstOrNull { it.code == "KJV" }?.code ?: translations.firstOrNull()?.code
+    // Initialize the translation from the remembered one; only when unset/invalid so it never
+    // fights an in-session selection.
+    LaunchedEffect(translations, settings.browseTranslationCode) {
+        if (translations.isNotEmpty() && (code == null || translations.none { it.code == code })) {
+            code = translations.firstOrNull { it.code == settings.browseTranslationCode }?.code
+                ?: translations.firstOrNull { it.code == "KJV" }?.code
+                ?: translations.firstOrNull()?.code
         }
     }
+    // On translation change, reload the book list and remember the choice; keep the current book if
+    // the new translation has it (so switching translation stays "in the same place").
     LaunchedEffect(code) {
-        book = null; chapter = null; selectedVerse = null
-        books = code?.let { vm.books(it) } ?: emptyList()
+        val c = code
+        if (c != null) {
+            books = vm.books(c)
+            if (book != null && book !in books) { book = null; chapter = null; openVerse = null }
+            vm.setBrowseTranslation(c)
+        } else {
+            books = emptyList()
+        }
     }
     LaunchedEffect(code, book) {
-        chapter = null; selectedVerse = null
-        chapters = if (code != null && book != null) vm.chapters(code!!, book!!) else emptyList()
+        if (code != null && book != null) {
+            chapters = vm.chapters(code!!, book!!)
+            if (chapter != null && chapter !in chapters) { chapter = null; openVerse = null }
+        } else {
+            chapters = emptyList()
+        }
     }
     LaunchedEffect(code, book, chapter) {
-        selectedVerse = null
-        verses = if (code != null && book != null && chapter != null) vm.versesIn(code!!, book!!, chapter!!) else emptyList()
+        if (code != null && book != null && chapter != null) {
+            verses = vm.versesIn(code!!, book!!, chapter!!)
+            if (openVerse != null && verses.none { it.verse == openVerse }) {
+                // Clamp to the last verse if the new translation's chapter is shorter, else drop.
+                val last = verses.lastOrNull()?.verse
+                openVerse = if (last != null && openVerse!! > last) last else null
+            }
+        } else {
+            verses = emptyList()
+        }
     }
 
     Column(modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -105,7 +130,8 @@ fun BrowseScreen(
             }
         }
 
-        // Translation selector
+        // Translation selector. Tapping the active one jumps back to book selection; tapping another
+        // switches translation while keeping the current book/chapter/verse position.
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -114,7 +140,13 @@ fun BrowseScreen(
                 TranslationChip(
                     code = t.code,
                     selected = t.code == code,
-                    onClick = { code = t.code },
+                    onClick = {
+                        if (t.code == code) {
+                            book = null; chapter = null; openVerse = null
+                        } else {
+                            code = t.code
+                        }
+                    },
                     onLongClick = { vm.openTranslationEditor(t) },
                 )
             }
@@ -164,8 +196,8 @@ fun BrowseScreen(
                 }
             }
 
-            // Step 3 — verse-number grid; tap navigates to the verse in context
-            selectedVerse == null -> Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Step 3 — verse-number grid; tap opens the verse in context
+            openVerse == null -> Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Crumb("${BookNames.name(book!!)} $chapter") { chapter = null }
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(5),
@@ -178,32 +210,32 @@ fun BrowseScreen(
                             label = "${v.verse}",
                             bg = MaterialTheme.colorScheme.surfaceVariant,
                             fg = MaterialTheme.colorScheme.onSurfaceVariant,
-                            onClick = { selectedVerse = v.verse },
+                            onClick = { openVerse = v.verse },
                         )
                     }
                 }
             }
 
-            // Step 4 — read the chapter in context; the chosen verse is highlighted, tap + to add
+            // Step 4 — read in context; tap verses to select a range, then Add
             else -> ReadingView(
                 modifier = Modifier.weight(1f),
                 bookName = BookNames.name(book!!),
                 chapter = chapter!!,
                 verses = verses,
-                selectedVerse = selectedVerse!!,
-                onBack = { selectedVerse = null },
+                initialVerse = openVerse!!,
+                onBack = { openVerse = null },
                 onAdd = { pendingAdd = it },
             )
         }
     }
 
-    pendingAdd?.let { cv ->
+    pendingAdd?.let { selected ->
         SetPickerDialog(
             sets = sets,
             defaultSetId = selectedSetId,
             onDismiss = { pendingAdd = null },
-            onPick = { setId -> vm.addToStudy(cv, setId); pendingAdd = null },
-            onCreateAndPick = { name -> vm.createSet(name) { id -> vm.addToStudy(cv, id) }; pendingAdd = null },
+            onPick = { setId -> vm.addRangeToStudy(selected, setId); pendingAdd = null },
+            onCreateAndPick = { name -> vm.createSet(name) { id -> vm.addRangeToStudy(selected, id) }; pendingAdd = null },
         )
     }
 
@@ -214,6 +246,84 @@ fun BrowseScreen(
             onSave = { c, n -> vm.saveTranslation(t, c, n) },
             onDelete = { vm.deleteTranslation(t) },
         )
+    }
+}
+
+@Composable
+private fun ReadingView(
+    modifier: Modifier = Modifier,
+    bookName: String,
+    chapter: Int,
+    verses: List<CorpusVerse>,
+    initialVerse: Int,
+    onBack: () -> Unit,
+    onAdd: (List<CorpusVerse>) -> Unit,
+) {
+    // Contiguous selection [lo..hi]. Starts on the verse the user opened at.
+    var lo by remember(verses, initialVerse) { mutableStateOf(initialVerse) }
+    var hi by remember(verses, initialVerse) { mutableStateOf(initialVerse) }
+
+    fun tap(v: Int) {
+        if (lo == hi) {
+            // one selected -> extend to a range spanning both
+            lo = minOf(lo, v); hi = maxOf(hi, v)
+        } else {
+            // range selected -> restart at the tapped verse
+            lo = v; hi = v
+        }
+    }
+
+    val listState = rememberLazyListState()
+    LaunchedEffect(initialVerse, verses) {
+        val idx = verses.indexOfFirst { it.verse == initialVerse }
+        if (idx >= 0) listState.scrollToItem(idx)
+    }
+
+    val selected = verses.filter { it.verse in lo..hi }
+    val reference = if (lo == hi) "$bookName $chapter:$lo" else "$bookName $chapter:$lo-$hi"
+
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Crumb("$bookName $chapter") { onBack() }
+        Text(
+            "Tap verses to select one or a range, then Add.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        LazyColumn(state = listState, modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            items(verses, key = { it.id }) { v ->
+                val inRange = v.verse in lo..hi
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (inRange) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent)
+                        .clickable { tap(v.verse) }
+                        .padding(start = 10.dp, top = 8.dp, bottom = 8.dp, end = 10.dp),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    Text(
+                        "${v.verse}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.padding(end = 10.dp, top = 4.dp),
+                    )
+                    Text(
+                        v.text,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Serif),
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
+        Button(
+            onClick = { if (selected.isNotEmpty()) onAdd(selected) },
+            enabled = selected.isNotEmpty(),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(Icons.Filled.Add, contentDescription = null)
+            Text("  Add $reference")
+        }
     }
 }
 
@@ -288,7 +398,6 @@ private fun SetPickerDialog(
 ) {
     var creating by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("") }
-    // Show the current set first as the obvious default.
     val ordered = sets.sortedByDescending { it.id == defaultSetId }
 
     AlertDialog(
@@ -305,10 +414,7 @@ private fun SetPickerDialog(
                 Column {
                     ordered.forEach { s ->
                         val isDefault = s.id == defaultSetId
-                        TextButton(
-                            onClick = { onPick(s.id) },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
+                        TextButton(onClick = { onPick(s.id) }, modifier = Modifier.fillMaxWidth()) {
                             Text(
                                 if (isDefault) "${s.name}  (current)" else s.name,
                                 modifier = Modifier.fillMaxWidth(),
@@ -324,10 +430,9 @@ private fun SetPickerDialog(
         },
         confirmButton = {
             if (creating) {
-                TextButton(
-                    onClick = { onCreateAndPick(newName.trim()) },
-                    enabled = newName.isNotBlank(),
-                ) { Text("Create & add") }
+                TextButton(onClick = { onCreateAndPick(newName.trim()) }, enabled = newName.isNotBlank()) {
+                    Text("Create & add")
+                }
             } else {
                 TextButton(onClick = onDismiss) { Text("Cancel") }
             }
@@ -336,62 +441,6 @@ private fun SetPickerDialog(
             { TextButton(onClick = { creating = false }) { Text("Back") } }
         } else null,
     )
-}
-
-@Composable
-private fun ReadingView(
-    modifier: Modifier = Modifier,
-    bookName: String,
-    chapter: Int,
-    verses: List<CorpusVerse>,
-    selectedVerse: Int,
-    onBack: () -> Unit,
-    onAdd: (CorpusVerse) -> Unit,
-) {
-    val listState = rememberLazyListState()
-    LaunchedEffect(selectedVerse, verses) {
-        val idx = verses.indexOfFirst { it.verse == selectedVerse }
-        if (idx >= 0) listState.scrollToItem(idx)
-    }
-
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Crumb("$bookName $chapter") { onBack() }
-        LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            items(verses, key = { it.id }) { v ->
-                val highlighted = v.verse == selectedVerse
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(
-                            if (highlighted) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
-                        )
-                        .padding(start = 8.dp, top = 6.dp, bottom = 6.dp, end = 2.dp),
-                    verticalAlignment = Alignment.Top,
-                ) {
-                    Text(
-                        "${v.verse}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.padding(end = 8.dp, top = 4.dp),
-                    )
-                    Text(
-                        v.text,
-                        style = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Serif),
-                        color = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.weight(1f),
-                    )
-                    IconButton(onClick = { onAdd(v) }) {
-                        Icon(
-                            Icons.Filled.AddCircle,
-                            contentDescription = "Add ${v.verse} to my verses",
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
-            }
-        }
-    }
 }
 
 @Composable
