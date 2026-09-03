@@ -18,9 +18,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.WbTwilight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -36,11 +35,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.fanstaf.selah.data.DisplayMode
 import com.fanstaf.selah.ui.BrowseScreen
+import com.fanstaf.selah.ui.HomeScreen
 import com.fanstaf.selah.ui.MainViewModel
-import com.fanstaf.selah.ui.SettingsScreen
-import com.fanstaf.selah.ui.TodayScreen
 import com.fanstaf.selah.ui.VersesScreen
 import com.fanstaf.selah.ui.overlay.OverlayController
 import com.fanstaf.selah.ui.theme.SelahTheme
@@ -137,7 +134,7 @@ class MainActivity : ComponentActivity() {
 }
 
 private enum class Tab(val label: String) {
-    Today("Today"), Verses("Verses"), Browse("Browse"), Settings("Settings")
+    Home("Home"), Verses("Verses"), Browse("Browse")
 }
 
 @Composable
@@ -149,13 +146,14 @@ private fun MainScaffold(
     onPreview: () -> Unit,
     onImport: () -> Unit,
 ) {
-    var tab by remember { mutableStateOf(Tab.Today) }
+    var tab by remember { mutableStateOf(Tab.Home) }
     val settings by vm.settings.collectAsState()
     val verses by vm.verses.collectAsState()
     val sets by vm.sets.collectAsState()
     val selectedSetId by vm.selectedSetId.collectAsState()
     val translations by vm.translations.collectAsState()
     val message by vm.message.collectAsState()
+    val navTarget by vm.navTarget.collectAsState()
     val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(message) {
@@ -164,16 +162,23 @@ private fun MainScaffold(
             vm.clearMessage()
         }
     }
+    // Programmatic navigation (e.g. "pick single verse from the Bible" round-trip).
+    LaunchedEffect(navTarget) {
+        navTarget?.let {
+            tab = Tab.entries[it]
+            vm.consumeNav()
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
-                    selected = tab == Tab.Today,
-                    onClick = { tab = Tab.Today },
-                    icon = { Icon(Icons.Outlined.WbTwilight, contentDescription = null) },
-                    label = { Text(Tab.Today.label) },
+                    selected = tab == Tab.Home,
+                    onClick = { tab = Tab.Home },
+                    icon = { Icon(Icons.Filled.Home, contentDescription = null) },
+                    label = { Text(Tab.Home.label) },
                 )
                 NavigationBarItem(
                     selected = tab == Tab.Verses,
@@ -187,25 +192,31 @@ private fun MainScaffold(
                     icon = { Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null) },
                     label = { Text(Tab.Browse.label) },
                 )
-                NavigationBarItem(
-                    selected = tab == Tab.Settings,
-                    onClick = { tab = Tab.Settings },
-                    icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
-                    label = { Text(Tab.Settings.label) },
-                )
             }
         },
     ) { inner ->
         val contentModifier = Modifier.padding(inner)
         when (tab) {
-            Tab.Today -> TodayScreen(
+            Tab.Home -> HomeScreen(
                 modifier = contentModifier,
                 settings = settings,
+                verses = verses,
+                sets = sets,
                 overlayGranted = overlayGranted,
-                activeCount = verses.count { it.active },
-                onRequestOverlay = onRequestOverlay,
                 onEnableToggle = onEnableToggle,
+                onRequestOverlay = onRequestOverlay,
                 onPreview = onPreview,
+                onSelectSourceSet = vm::selectSourceSet,
+                onSingleSource = vm::setSingleSource,
+                onOrderRandom = vm::setOrderRandom,
+                onDuration = vm::setDuration,
+                onMode = vm::setMode,
+                onMinInterval = vm::setMinInterval,
+                onFontScale = vm::setFontScale,
+                onDisplayStyle = vm::setDisplayStyle,
+                onPickSingleExisting = vm::chooseSingleExisting,
+                onTypeSingle = vm::addVerseAsSingle,
+                onPickSingleFromBible = vm::startSingleFromBible,
             )
             Tab.Verses -> VersesScreen(
                 modifier = contentModifier,
@@ -235,18 +246,6 @@ private fun MainScaffold(
                 vm = vm,
                 translations = translations,
                 onImport = onImport,
-            )
-            Tab.Settings -> SettingsScreen(
-                modifier = contentModifier,
-                settings = settings,
-                sets = sets,
-                onDuration = vm::setDuration,
-                onMode = vm::setMode,
-                onSelection = vm::setSelection,
-                onMinInterval = vm::setMinInterval,
-                onFontScale = vm::setFontScale,
-                onDisplayStyle = vm::setDisplayStyle,
-                onScope = vm::setScopeSetId,
             )
         }
     }

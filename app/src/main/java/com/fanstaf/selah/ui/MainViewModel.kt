@@ -37,6 +37,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val message = MutableStateFlow<String?>(null)
     fun clearMessage() { message.value = null }
 
+    /** Programmatic tab navigation: 0=Home, 1=Verses, 2=Browse; null=none. */
+    val navTarget = MutableStateFlow<Int?>(null)
+    fun consumeNav() { navTarget.value = null }
+
+    /** True while the user is picking a single verse from the Bible (in the Browse tab). */
+    val pickSingleFromBible = MutableStateFlow(false)
+    fun startSingleFromBible() {
+        pickSingleFromBible.value = true
+        navTarget.value = 2
+    }
+
     /** The translation currently being edited (import just finished, or long-pressed). */
     val editingTranslation = MutableStateFlow<CorpusTranslation?>(null)
     fun openTranslationEditor(t: CorpusTranslation) { editingTranslation.value = t }
@@ -85,6 +96,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setSelection(s: SelectionStrategy) = viewModelScope.launch { store.setSelection(s) }
     fun setMinInterval(minutes: Int) = viewModelScope.launch { store.setMinInterval(minutes) }
     fun setSingleVerse(id: Long) = viewModelScope.launch { store.setSingleVerseId(id) }
+
+    /** Pick an existing verse as the single verse. */
+    fun chooseSingleExisting(id: Long) = viewModelScope.launch {
+        store.setSingleVerseId(id)
+        store.setSelection(SelectionStrategy.SINGLE)
+    }
+
+    fun setOrderRandom(random: Boolean) = viewModelScope.launch {
+        store.setSelection(if (random) SelectionStrategy.RANDOM else SelectionStrategy.SEQUENTIAL)
+    }
+    fun setSingleSource() = viewModelScope.launch { store.setSelection(SelectionStrategy.SINGLE) }
     fun setFontScale(scale: Float) = viewModelScope.launch { store.setFontScale(scale) }
     fun setDisplayStyle(style: DisplayStyle) = viewModelScope.launch { store.setDisplayStyle(style) }
     fun setScopeSetId(id: Long) = viewModelScope.launch { store.setScopeSetId(id) }
@@ -95,6 +117,22 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val target = if (setId >= 0) setId else repo.ensureDefaultSet()
             repo.addUserVerse(reference, text, translation, target)
         }
+
+    /** Choose the source for the rotation: a set (or All), leaving single-verse mode if it was on. */
+    fun selectSourceSet(scopeSetId: Long) = viewModelScope.launch {
+        store.setScopeSetId(scopeSetId)
+        if (settings.value.selection == SelectionStrategy.SINGLE) {
+            store.setSelection(SelectionStrategy.SEQUENTIAL)
+        }
+    }
+
+    /** Type a new verse and make it the single verse. */
+    fun addVerseAsSingle(reference: String, text: String, translation: String) = viewModelScope.launch {
+        val target = repo.ensureDefaultSet()
+        val id = repo.addUserVerse(reference, text, translation, target)
+        store.setSingleVerseId(id)
+        store.setSelection(SelectionStrategy.SINGLE)
+    }
 
     fun updateVerse(verse: Verse) = viewModelScope.launch {
         // Re-derive coordinates from the (possibly edited) reference so Biblical sort stays correct.
@@ -132,20 +170,32 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setBrowseTranslation(code: String) = viewModelScope.launch { store.setBrowseTranslation(code) }
 
-    /** Add one or more contiguous corpus verses as a single study entry. */
-    fun addRangeToStudy(verses: List<CorpusVerse>, setId: Long) = viewModelScope.launch {
+    /**
+     * Add one or more contiguous corpus verses as a single study entry. When [asSingle] is set (the
+     * "pick single verse from the Bible" flow) the entry also becomes the single verse and we
+     * navigate back Home.
+     */
+    fun addRangeToStudy(verses: List<CorpusVerse>, setId: Long, asSingle: Boolean = false) = viewModelScope.launch {
         if (verses.isEmpty()) return@launch
         val target = if (setId >= 0) setId else repo.ensureDefaultSet()
-        val added = corpus.addRangeToStudy(verses, target)
+        val result = corpus.addRangeToStudy(verses, target)
         val sorted = verses.sortedBy { it.verse }
         val first = sorted.first()
         val last = sorted.last()
         val ref = if (first.verse == last.verse) {
-            com.fanstaf.selah.data.BookNames.reference(first.bookNumber, first.chapter, first.verse)
+            BookNames.reference(first.bookNumber, first.chapter, first.verse)
         } else {
-            "${com.fanstaf.selah.data.BookNames.name(first.bookNumber)} ${first.chapter}:${first.verse}-${last.verse}"
+            "${BookNames.name(first.bookNumber)} ${first.chapter}:${first.verse}-${last.verse}"
         }
-        message.value = if (added) "Added $ref" else "Already in your verses"
+        if (asSingle) {
+            store.setSingleVerseId(result.id)
+            store.setSelection(SelectionStrategy.SINGLE)
+            pickSingleFromBible.value = false
+            navTarget.value = 0
+            message.value = "Single verse: $ref"
+        } else {
+            message.value = if (result.added) "Added $ref" else "Already in your verses"
+        }
     }
 
     fun importFromUri(uri: Uri) = viewModelScope.launch {

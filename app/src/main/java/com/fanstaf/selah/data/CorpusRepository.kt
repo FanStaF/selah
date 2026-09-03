@@ -74,26 +74,28 @@ class CorpusRepository(
      * Copy a corpus verse into the user's study list (a stable snapshot). Skips if the same verse
      * in the same translation is already there. Returns true if added.
      */
+    /** Result of adding to the study list: the entry's id, and whether it was newly created. */
+    data class AddResult(val id: Long, val added: Boolean)
+
     /**
      * Add one or more contiguous corpus verses as a single study entry (e.g. "Colossians 2:8-10",
-     * text joined). Skips if a verse with the same start reference already exists. Returns true if
-     * added.
+     * text joined). If a verse with the same start reference already exists, returns that one
+     * instead of duplicating.
      */
-    suspend fun addRangeToStudy(verses: List<CorpusVerse>, setId: Long): Boolean {
-        if (verses.isEmpty()) return false
+    suspend fun addRangeToStudy(verses: List<CorpusVerse>, setId: Long): AddResult {
         val sorted = verses.sortedBy { it.verse }
         val first = sorted.first()
         val last = sorted.last()
         val code = first.translationCode
         val book = first.bookNumber
         val chapter = first.chapter
-        if (verseDao.countMatching(code, book, chapter, first.verse) > 0) return false
+        verseDao.findMatching(code, book, chapter, first.verse)?.let { return AddResult(it.id, false) }
         val reference = if (first.verse == last.verse) {
             BookNames.reference(book, chapter, first.verse)
         } else {
             "${BookNames.name(book)} $chapter:${first.verse}-${last.verse}"
         }
-        verseDao.insert(
+        val id = verseDao.insert(
             Verse(
                 reference = reference,
                 text = sorted.joinToString(" ") { it.text },
@@ -107,7 +109,7 @@ class CorpusRepository(
                 setId = setId,
             ),
         )
-        return true
+        return AddResult(id, true)
     }
 
     suspend fun addToStudy(cv: CorpusVerse, setId: Long): Boolean {

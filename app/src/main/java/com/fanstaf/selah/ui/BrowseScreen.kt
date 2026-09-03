@@ -67,6 +67,7 @@ fun BrowseScreen(
     val sets by vm.sets.collectAsState()
     val selectedSetId by vm.selectedSetId.collectAsState()
     val editingTranslation by vm.editingTranslation.collectAsState()
+    val pickSingle by vm.pickSingleFromBible.collectAsState()
     var pendingAdd by remember { mutableStateOf<List<CorpusVerse>?>(null) }
 
     var code by remember { mutableStateOf<String?>(null) }
@@ -128,6 +129,14 @@ fun BrowseScreen(
                 Icon(Icons.Filled.FileDownload, contentDescription = null)
                 Text("  Import", maxLines = 1)
             }
+        }
+
+        if (pickSingle) {
+            Text(
+                "Pick a verse to use as your single verse — open a chapter and tap Add.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.secondary,
+            )
         }
 
         // Translation selector. Tapping the active one jumps back to book selection; tapping another
@@ -234,8 +243,8 @@ fun BrowseScreen(
             sets = sets,
             defaultSetId = selectedSetId,
             onDismiss = { pendingAdd = null },
-            onPick = { setId -> vm.addRangeToStudy(selected, setId); pendingAdd = null },
-            onCreateAndPick = { name -> vm.createSet(name) { id -> vm.addRangeToStudy(selected, id) }; pendingAdd = null },
+            onPick = { setId -> vm.addRangeToStudy(selected, setId, asSingle = pickSingle); pendingAdd = null },
+            onCreateAndPick = { name -> vm.createSet(name) { id -> vm.addRangeToStudy(selected, id, asSingle = pickSingle) }; pendingAdd = null },
         )
     }
 

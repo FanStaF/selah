@@ -37,6 +37,9 @@ interface VerseDao {
     @Query("SELECT COUNT(*) FROM verses WHERE translation = :translation AND bookNumber = :book AND chapter = :chapter AND verse = :verse")
     suspend fun countMatching(translation: String, book: Int, chapter: Int, verse: Int): Int
 
+    @Query("SELECT * FROM verses WHERE translation = :translation AND bookNumber = :book AND chapter = :chapter AND verse = :verse LIMIT 1")
+    suspend fun findMatching(translation: String, book: Int, chapter: Int, verse: Int): Verse?
+
     @Insert
     suspend fun insert(verse: Verse): Long
 
