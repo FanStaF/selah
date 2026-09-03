@@ -129,7 +129,7 @@ class MainActivity : ComponentActivity() {
             s.singleVerseId >= 0 -> active.firstOrNull { it.id == s.singleVerseId } ?: active.first()
             else -> active.first()
         }
-        OverlayController(applicationContext).show(verse, s.mode, s.displayStyle, s.durationSeconds, s.fontScale)
+        OverlayController(applicationContext).show(verse, s.displayStyle, s.durationSeconds, s.fontScale)
     }
 }
 
@@ -210,7 +210,6 @@ private fun MainScaffold(
                 onSingleSource = vm::setSingleSource,
                 onOrderRandom = vm::setOrderRandom,
                 onDuration = vm::setDuration,
-                onMode = vm::setMode,
                 onMinInterval = vm::setMinInterval,
                 onFontScale = vm::setFontScale,
                 onDisplayStyle = vm::setDisplayStyle,

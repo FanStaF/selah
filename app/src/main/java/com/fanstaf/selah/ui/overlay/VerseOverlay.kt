@@ -23,7 +23,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,69 +32,30 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.fanstaf.selah.data.DisplayMode
 import com.fanstaf.selah.data.DisplayStyle
 import com.fanstaf.selah.ui.theme.verseTextStyle
-import kotlinx.coroutines.delay
 
 /**
- * The verse shown after unlock. Two styles:
+ * The verse presented after unlock — a quiet pause, not a quiz. Two styles:
  *  - CARD: a small floating card; the window is non-blocking (taps outside fall through).
- *  - FULLSCREEN: an opaque panel over the whole app area (tap anywhere to reveal/dismiss).
+ *  - FULLSCREEN: an opaque panel over the whole app area (tap anywhere to dismiss).
  *
  * A quiet "Selah" button holds the moment open — cancelling the auto-dismiss timer so the verse
- * stays until the user dismisses it, for those who want to pause and reflect longer.
+ * stays until the user dismisses it, for those who want to reflect longer.
  */
 @Composable
 fun VerseOverlay(
     reference: String,
     text: String,
     translation: String,
-    mode: DisplayMode,
     style: DisplayStyle,
     fontScale: Float,
-    revealDelayMs: Long,
-    onRevealed: () -> Unit,
     onHold: () -> Unit,
     onClose: () -> Unit,
 ) {
-    var revealed by remember { mutableStateOf(mode == DisplayMode.READ) }
-
-    if (mode == DisplayMode.RECALL) {
-        LaunchedEffect(Unit) {
-            delay(revealDelayMs)
-            if (!revealed) {
-                revealed = true
-                onRevealed()
-            }
-        }
-    }
-
-    fun reveal() {
-        revealed = true
-        onRevealed()
-    }
-
     when (style) {
-        DisplayStyle.FULLSCREEN -> FullScreenOverlay(
-            reference = reference,
-            text = text,
-            translation = translation,
-            revealed = revealed,
-            fontScale = fontScale,
-            onTap = { if (revealed) onClose() else reveal() },
-            onHold = onHold,
-        )
-        DisplayStyle.CARD -> CardOverlay(
-            reference = reference,
-            text = text,
-            translation = translation,
-            revealed = revealed,
-            fontScale = fontScale,
-            onReveal = { reveal() },
-            onHold = onHold,
-            onClose = onClose,
-        )
+        DisplayStyle.FULLSCREEN -> FullScreenOverlay(reference, text, translation, fontScale, onClose, onHold)
+        DisplayStyle.CARD -> CardOverlay(reference, text, translation, fontScale, onHold, onClose)
     }
 }
 
@@ -113,16 +73,8 @@ private fun SelahHold(onHold: () -> Unit) {
             )
         } else {
             TextButton(onClick = { held = true; onHold() }) {
-                Icon(
-                    Icons.Filled.Pause,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.secondary,
-                )
-                Text(
-                    "  Selah",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.secondary,
-                )
+                Icon(Icons.Filled.Pause, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                Text("  Selah", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
             }
         }
     }
@@ -133,7 +85,6 @@ private fun FullScreenOverlay(
     reference: String,
     text: String,
     translation: String,
-    revealed: Boolean,
     fontScale: Float,
     onTap: () -> Unit,
     onHold: () -> Unit,
@@ -142,11 +93,7 @@ private fun FullScreenOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(scheme.background, scheme.surface, scheme.background),
-                ),
-            )
+            .background(Brush.verticalGradient(listOf(scheme.background, scheme.surface, scheme.background)))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -165,31 +112,17 @@ private fun FullScreenOverlay(
                 color = scheme.secondary,
                 textAlign = TextAlign.Center,
             )
-            if (revealed) {
-                Text(
-                    text = text,
-                    style = verseTextStyle(MaterialTheme.typography.headlineMedium, fontScale),
-                    color = scheme.onBackground,
-                    textAlign = TextAlign.Center,
-                )
-                Text(
-                    text = translation,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = scheme.onSurfaceVariant,
-                )
-            } else {
-                Text(
-                    text = "Can you say it?",
-                    style = verseTextStyle(MaterialTheme.typography.headlineMedium, fontScale),
-                    color = scheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-                Text(
-                    text = "tap to reveal",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = scheme.onSurfaceVariant,
-                )
-            }
+            Text(
+                text = text,
+                style = verseTextStyle(MaterialTheme.typography.headlineMedium, fontScale),
+                color = scheme.onBackground,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = translation,
+                style = MaterialTheme.typography.labelMedium,
+                color = scheme.onSurfaceVariant,
+            )
             Spacer(Modifier.height(4.dp))
             SelahHold(onHold = onHold)
         }
@@ -201,16 +134,12 @@ private fun CardOverlay(
     reference: String,
     text: String,
     translation: String,
-    revealed: Boolean,
     fontScale: Float,
-    onReveal: () -> Unit,
     onHold: () -> Unit,
     onClose: () -> Unit,
 ) {
     Card(
-        modifier = Modifier
-            .widthIn(max = 380.dp)
-            .padding(16.dp),
+        modifier = Modifier.widthIn(max = 380.dp).padding(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface,
@@ -219,9 +148,7 @@ private fun CardOverlay(
     ) {
         Box(Modifier.fillMaxWidth()) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 24.dp, end = 24.dp, top = 22.dp, bottom = 12.dp),
+                modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 22.dp, bottom = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -231,33 +158,20 @@ private fun CardOverlay(
                     color = MaterialTheme.colorScheme.secondary,
                     textAlign = TextAlign.Center,
                 )
-                if (revealed) {
-                    Text(
-                        text = text,
-                        style = verseTextStyle(MaterialTheme.typography.headlineMedium, fontScale),
-                        textAlign = TextAlign.Center,
-                    )
-                    Text(
-                        text = translation,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                } else {
-                    Text(
-                        text = "Can you say it?",
-                        style = verseTextStyle(MaterialTheme.typography.headlineMedium, fontScale),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                    )
-                    TextButton(onClick = onReveal) { Text("Reveal") }
-                }
+                Text(
+                    text = text,
+                    style = verseTextStyle(MaterialTheme.typography.headlineMedium, fontScale),
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    text = translation,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 SelahHold(onHold = onHold)
             }
 
-            IconButton(
-                onClick = onClose,
-                modifier = Modifier.align(Alignment.TopEnd),
-            ) {
+            IconButton(onClick = onClose, modifier = Modifier.align(Alignment.TopEnd)) {
                 Icon(
                     imageVector = Icons.Filled.Close,
                     contentDescription = "Dismiss",

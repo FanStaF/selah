@@ -7,7 +7,6 @@ import androidx.lifecycle.viewModelScope
 import com.fanstaf.selah.AppGraph
 import com.fanstaf.selah.data.CorpusTranslation
 import com.fanstaf.selah.data.CorpusVerse
-import com.fanstaf.selah.data.DisplayMode
 import com.fanstaf.selah.data.DisplayStyle
 import com.fanstaf.selah.data.SelectionStrategy
 import com.fanstaf.selah.data.BookNames
@@ -92,7 +91,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun setDuration(seconds: Int) = viewModelScope.launch { store.setDuration(seconds) }
-    fun setMode(mode: DisplayMode) = viewModelScope.launch { store.setMode(mode) }
     fun setSelection(s: SelectionStrategy) = viewModelScope.launch { store.setSelection(s) }
     fun setMinInterval(minutes: Int) = viewModelScope.launch { store.setMinInterval(minutes) }
     fun setSingleVerse(id: Long) = viewModelScope.launch { store.setSingleVerseId(id) }

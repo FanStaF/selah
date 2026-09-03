@@ -12,7 +12,6 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import com.fanstaf.selah.data.DisplayMode
 import com.fanstaf.selah.data.DisplayStyle
 import com.fanstaf.selah.data.Verse
 import com.fanstaf.selah.ui.theme.SelahTheme
@@ -31,13 +30,12 @@ class OverlayController(private val context: Context) {
     private var currentOwner: OverlayLifecycleOwner? = null
     private var held = false
 
-    fun show(verse: Verse, mode: DisplayMode, style: DisplayStyle, durationSeconds: Int, fontScale: Float) {
+    fun show(verse: Verse, style: DisplayStyle, durationSeconds: Int, fontScale: Float) {
         removeNow()
         held = false
 
         val owner = OverlayLifecycleOwner().apply { onCreate(); onResume() }
         val readMs = durationSeconds.coerceIn(2, 60) * 1000L
-        val revealDelayMs = minOf(2000L, readMs / 2)
 
         val view = ComposeView(context).apply {
             setViewTreeLifecycleOwner(owner)
@@ -50,12 +48,8 @@ class OverlayController(private val context: Context) {
                         reference = verse.reference,
                         text = verse.text,
                         translation = verse.translation,
-                        mode = mode,
                         style = style,
                         fontScale = fontScale,
-                        revealDelayMs = revealDelayMs,
-                        // Once revealed, give the full read time before auto-dismiss (unless held).
-                        onRevealed = { if (!held) scheduleDismiss(readMs) },
                         onHold = { hold() },
                         onClose = { dismiss() },
                     )
@@ -81,10 +75,7 @@ class OverlayController(private val context: Context) {
             .onFailure { android.util.Log.e("SelahOverlay", "addView failed", it); removeNow(); return }
 
         view.animate().alpha(1f).setDuration(180L).start()
-
-        // READ shows for the full duration; RECALL adds the "can you say it?" beat up front.
-        val initial = if (mode == DisplayMode.RECALL) revealDelayMs + readMs else readMs
-        scheduleDismiss(initial)
+        scheduleDismiss(readMs)
     }
 
     fun dismiss() {

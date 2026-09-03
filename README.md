@@ -12,15 +12,15 @@ gentle reminder, not a gate.
 ## How it works
 
 - A lightweight foreground service listens for the device-unlock event (`ACTION_USER_PRESENT`).
-- On unlock it draws a verse as an overlay for a configurable few seconds, then auto-dismisses.
+- On unlock it presents a verse as an overlay for a configurable few seconds, then auto-dismisses.
 - A quiet **Selah** button holds the verse open when you want to reflect longer.
-- Two modes: **Read** (shows the verse) and **Recall** (shows the reference first — try to say it —
-  then reveals the text).
+
+It's a scripture *presenter* — a pause and a moment of reflection, not a quiz or a memorization
+drill. (Seeing scripture regularly still helps you remember it — that just isn't the point.)
 
 ## Features
 
 - Verse-after-unlock overlay — full-screen, or a small non-blocking card
-- Read & Recall modes
 - **Sets** of verses; choose which set feeds the rotation
 - Logos-style Bible browser: a color-coded book grid → chapter → verse, read in context
 - Bundled **King James Version** (public domain) to browse and pick from

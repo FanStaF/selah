@@ -13,9 +13,6 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-/** How the verse is presented in the overlay. */
-enum class DisplayMode { READ, RECALL }
-
 /** How the next verse is chosen from the active set. */
 enum class SelectionStrategy { SEQUENTIAL, RANDOM, SINGLE }
 
@@ -26,7 +23,6 @@ enum class DisplayStyle { CARD, FULLSCREEN }
 data class Settings(
     val enabled: Boolean = false,
     val durationSeconds: Int = 6,
-    val mode: DisplayMode = DisplayMode.RECALL,
     val selection: SelectionStrategy = SelectionStrategy.SEQUENTIAL,
     /** Minimum minutes between shows. 0 = every unlock. */
     val minIntervalMinutes: Int = 30,
@@ -54,7 +50,6 @@ class SettingsStore(private val context: Context) {
     private object Keys {
         val ENABLED = booleanPreferencesKey("enabled")
         val DURATION = intPreferencesKey("duration_seconds")
-        val MODE = stringPreferencesKey("mode")
         val SELECTION = stringPreferencesKey("selection")
         val MIN_INTERVAL = intPreferencesKey("min_interval_minutes")
         val SINGLE_ID = longPreferencesKey("single_verse_id")
@@ -73,7 +68,6 @@ class SettingsStore(private val context: Context) {
         Settings(
             enabled = p[Keys.ENABLED] ?: false,
             durationSeconds = p[Keys.DURATION] ?: 6,
-            mode = (p[Keys.MODE]?.let { runCatching { DisplayMode.valueOf(it) }.getOrNull() }) ?: DisplayMode.RECALL,
             selection = (p[Keys.SELECTION]?.let { runCatching { SelectionStrategy.valueOf(it) }.getOrNull() }) ?: SelectionStrategy.SEQUENTIAL,
             minIntervalMinutes = p[Keys.MIN_INTERVAL] ?: 30,
             singleVerseId = p[Keys.SINGLE_ID] ?: -1L,
@@ -91,7 +85,6 @@ class SettingsStore(private val context: Context) {
 
     suspend fun setEnabled(v: Boolean) = context.dataStore.edit { it[Keys.ENABLED] = v }
     suspend fun setDuration(v: Int) = context.dataStore.edit { it[Keys.DURATION] = v }
-    suspend fun setMode(v: DisplayMode) = context.dataStore.edit { it[Keys.MODE] = v.name }
     suspend fun setSelection(v: SelectionStrategy) = context.dataStore.edit { it[Keys.SELECTION] = v.name }
     suspend fun setMinInterval(v: Int) = context.dataStore.edit { it[Keys.MIN_INTERVAL] = v }
     suspend fun setSingleVerseId(v: Long) = context.dataStore.edit { it[Keys.SINGLE_ID] = v }

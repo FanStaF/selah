@@ -104,7 +104,7 @@ class UnlockService : Service() {
         }
 
         Log.d(TAG, "onUnlock: showing ${chosen.verse.reference}")
-        overlay.show(chosen.verse, settings.mode, settings.displayStyle, settings.durationSeconds, settings.fontScale)
+        overlay.show(chosen.verse, settings.displayStyle, settings.durationSeconds, settings.fontScale)
 
         scope.launch(Dispatchers.IO) {
             AppGraph.repository.markShown(chosen.verse.id, now)

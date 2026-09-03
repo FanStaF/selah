@@ -41,7 +41,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import com.fanstaf.selah.data.DisplayMode
 import com.fanstaf.selah.data.DisplayStyle
 import com.fanstaf.selah.data.SelectionStrategy
 import com.fanstaf.selah.data.Settings
@@ -64,7 +63,6 @@ fun HomeScreen(
     onSingleSource: () -> Unit,
     onOrderRandom: (Boolean) -> Unit,
     onDuration: (Int) -> Unit,
-    onMode: (DisplayMode) -> Unit,
     onMinInterval: (Int) -> Unit,
     onFontScale: (Float) -> Unit,
     onDisplayStyle: (DisplayStyle) -> Unit,
@@ -183,12 +181,6 @@ fun HomeScreen(
 
         // How it appears
         SectionCard("How it appears") {
-            Text("Mode", style = MaterialTheme.typography.labelLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(settings.mode == DisplayMode.READ, { onMode(DisplayMode.READ) }, { Text("Read") })
-                FilterChip(settings.mode == DisplayMode.RECALL, { onMode(DisplayMode.RECALL) }, { Text("Recall") })
-            }
-
             Text("Duration: ${settings.durationSeconds}s", style = MaterialTheme.typography.labelLarge)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 FilledTonalIconButton(
