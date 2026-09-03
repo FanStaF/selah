@@ -5,17 +5,26 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
@@ -35,17 +44,21 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import com.fanstaf.selah.data.SortOrder
 import com.fanstaf.selah.data.Verse
 import com.fanstaf.selah.data.VerseSet
@@ -82,6 +95,8 @@ fun VersesScreen(
     var creatingSet by remember { mutableStateOf(false) }
     var renamingSet by remember { mutableStateOf<VerseSet?>(null) }
     var confirmDeleteSet by remember { mutableStateOf<VerseSet?>(null) }
+    // Id of the verse the carousel viewer opened at (null = viewer closed).
+    var viewerStart by remember { mutableStateOf<Long?>(null) }
 
     val currentSet = sets.firstOrNull { it.id == selectedSetId }
     val filtered = if (selectedSetId == VerseSet.ALL) verses else verses.filter { it.setId == selectedSetId }
@@ -121,6 +136,7 @@ fun VersesScreen(
                     onEdit = { editing = it },
                     onDelete = onDelete,
                     onSetSingle = onSetSingle,
+                    onOpen = { viewerStart = it.id },
                 )
             } else {
                 LazyColumn(
@@ -131,9 +147,9 @@ fun VersesScreen(
                     items(shown, key = { it.id }) { verse ->
                         val isSingle = selectionIsSingle && verse.id == singleVerseId
                         if (compact) {
-                            CompactVerseRow(verse, isSingle, selectionIsSingle, { onSetActive(verse.id, it) }, { editing = verse }, { onDelete(verse) }, { onSetSingle(verse.id) })
+                            CompactVerseRow(verse, isSingle, selectionIsSingle, { onSetActive(verse.id, it) }, { editing = verse }, { onDelete(verse) }, { onSetSingle(verse.id) }, { viewerStart = verse.id })
                         } else {
-                            VerseRow(verse, isSingle, selectionIsSingle, { onSetActive(verse.id, it) }, { editing = verse }, { onDelete(verse) }, { onSetSingle(verse.id) })
+                            VerseRow(verse, isSingle, selectionIsSingle, { onSetActive(verse.id, it) }, { editing = verse }, { onDelete(verse) }, { onSetSingle(verse.id) }, { viewerStart = verse.id })
                         }
                     }
                 }
@@ -146,6 +162,25 @@ fun VersesScreen(
             text = { Text("Add verse") },
             modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
         )
+
+        val viewerIndex = viewerStart?.let { id -> shown.indexOfFirst { it.id == id } } ?: -1
+        androidx.compose.runtime.LaunchedEffect(viewerStart, viewerIndex) {
+            if (viewerStart != null && viewerIndex < 0) viewerStart = null
+        }
+        if (viewerStart != null && viewerIndex >= 0) {
+            VerseViewer(
+                verses = shown,
+                startIndex = viewerIndex,
+                onClose = { viewerStart = null },
+                onToggleActive = onSetActive,
+                onEdit = { editing = it },
+                onDelete = { v ->
+                    val wasLast = shown.size <= 1
+                    onDelete(v)
+                    if (wasLast) viewerStart = null
+                },
+            )
+        }
     }
 
     if (adding) {
@@ -184,6 +219,7 @@ private fun ManualVerseList(
     onEdit: (Verse) -> Unit,
     onDelete: (Verse) -> Unit,
     onSetSingle: (Long) -> Unit,
+    onOpen: (Verse) -> Unit,
 ) {
     val listState = rememberLazyListState()
     // Local working copy; reset only when the set of verses changes (not on mere reordering).
@@ -203,6 +239,7 @@ private fun ManualVerseList(
             ReorderableItem(reorderState, key = verse.id) { isDragging ->
                 val isSingle = selectionIsSingle && verse.id == singleVerseId
                 Card(
+                    onClick = { onOpen(verse) },
                     elevation = CardDefaults.cardElevation(defaultElevation = if (isDragging) 8.dp else 1.dp),
                 ) {
                     Row(
@@ -337,8 +374,9 @@ private fun CompactVerseRow(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onSetSingle: () -> Unit,
+    onOpen: () -> Unit,
 ) {
-    Card {
+    Card(onClick = onOpen) {
         Row(
             Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -379,8 +417,9 @@ private fun VerseRow(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onSetSingle: () -> Unit,
+    onOpen: () -> Unit,
 ) {
-    Card {
+    Card(onClick = onOpen) {
         Column(Modifier.padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -416,6 +455,93 @@ private fun VerseRow(
                 Box(Modifier.weight(1f))
                 IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, contentDescription = "Edit") }
                 IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, contentDescription = "Delete") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VerseViewer(
+    verses: List<Verse>,
+    startIndex: Int,
+    onClose: () -> Unit,
+    onToggleActive: (Long, Boolean) -> Unit,
+    onEdit: (Verse) -> Unit,
+    onDelete: (Verse) -> Unit,
+) {
+    val pagerState = rememberPagerState(
+        initialPage = startIndex.coerceIn(0, (verses.size - 1).coerceAtLeast(0)),
+        pageCount = { verses.size },
+    )
+    val scope = rememberCoroutineScope()
+
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Column(Modifier.fillMaxSize()) {
+            Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onClose) { Icon(Icons.Filled.Close, contentDescription = "Close") }
+            }
+
+            HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { page ->
+                val v = verses[page]
+                Column(
+                    Modifier.fillMaxSize().padding(horizontal = 32.dp).verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        v.reference.uppercase(),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.secondary,
+                        textAlign = TextAlign.Center,
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        v.text,
+                        style = MaterialTheme.typography.headlineSmall.copy(fontFamily = FontFamily.Serif),
+                        color = MaterialTheme.colorScheme.onBackground,
+                        textAlign = TextAlign.Center,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        v.translation,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            val current = pagerState.currentPage
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(enabled = current > 0, onClick = { scope.launch { pagerState.animateScrollToPage(current - 1) } }) {
+                    Icon(Icons.Filled.ChevronLeft, contentDescription = "Previous")
+                }
+                Text("${current + 1} of ${verses.size}", style = MaterialTheme.typography.titleSmall)
+                IconButton(enabled = current < verses.size - 1, onClick = { scope.launch { pagerState.animateScrollToPage(current + 1) } }) {
+                    Icon(Icons.Filled.ChevronRight, contentDescription = "Next")
+                }
+            }
+
+            verses.getOrNull(current)?.let { v ->
+                Row(
+                    Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            if (v.active) "In rotation" else "Paused",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Switch(checked = v.active, onCheckedChange = { onToggleActive(v.id, it) }, modifier = Modifier.padding(start = 8.dp))
+                    }
+                    IconButton(onClick = { onEdit(v) }) { Icon(Icons.Filled.Edit, contentDescription = "Edit") }
+                    IconButton(onClick = { onDelete(v) }) { Icon(Icons.Filled.Delete, contentDescription = "Delete") }
+                }
             }
         }
     }
